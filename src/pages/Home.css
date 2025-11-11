@@ -1,0 +1,130 @@
+.mood-home-wrapper {
+  width: 100%;
+  min-height: calc(100vh - 64px);
+  background: #f7f8fa;
+  padding: 32px 24px;
+  position: relative;
+}
+
+/* Override parent content styles for mood home */
+.sjs-app__content.mood-content-override {
+  background: #f7f8fa !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+
+.mood-home-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mood-home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  position: relative;
+}
+
+.fill-survey-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #4F46E5;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 16px;
+  transition: background-color 0.2s, transform 0.1s;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+}
+
+.fill-survey-button:hover {
+  background: #4338CA;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+}
+
+.fill-survey-button:active {
+  transform: translateY(0);
+}
+
+.fill-survey-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mood-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mood-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.mood-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.2s;
+}
+
+.mood-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.mood-card-title {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.mood-card-description {
+  margin: 0 0 20px 0;
+  font-size: 14px;
+  color: #6B7280;
+  line-height: 1.5;
+}
+
+.mood-card-placeholder {
+  width: 100%;
+  height: 200px;
+  background: #F3F4F6;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .mood-home-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .mood-title {
+    position: static;
+    transform: none;
+    width: 100%;
+  }
+  
+  .fill-survey-button {
+    align-self: flex-start;
+  }
+}
+
