@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS public.surveys (
 CREATE TABLE IF NOT EXISTS public.results (
   id uuid PRIMARY KEY DEFAULT public.uuid_generate_v4(),
   postid uuid NOT NULL,
-  json json NULL
+  json json NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- Helpful indexes

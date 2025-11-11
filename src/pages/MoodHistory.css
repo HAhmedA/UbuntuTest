@@ -1,0 +1,79 @@
+.mood-history-wrapper {
+  width: 100%;
+  min-height: calc(100vh - 64px);
+  background: #f7f8fa;
+  padding: 32px 24px;
+}
+
+.mood-history-container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.mood-history-back {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #111827;
+  cursor: pointer;
+  margin-bottom: 24px;
+  transition: all 0.2s;
+}
+
+.mood-history-back:hover {
+  background: #F9FAFB;
+  border-color: #D1D5DB;
+}
+
+.mood-history-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 32px 0;
+}
+
+.mood-history-loading,
+.mood-history-no-data {
+  text-align: center;
+  color: #6B7280;
+  padding: 60px 20px;
+  font-size: 18px;
+}
+
+.mood-history-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.mood-history-chart-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.mood-history-chart-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 20px 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .mood-history-wrapper {
+    padding: 24px 16px;
+  }
+  
+  .mood-history-title {
+    font-size: 24px;
+  }
+  
+  .mood-history-chart-container {
+    padding: 16px;
+  }
+}
+

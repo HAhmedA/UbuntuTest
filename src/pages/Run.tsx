@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router'
+import { useParams, useNavigate } from 'react-router'
 import { useReduxDispatch } from '../redux'
 import { post } from '../redux/results'
 import { get } from '../redux/surveys'
@@ -9,6 +9,7 @@ import 'survey-core/survey-core.css'
 
 const Run = () => {
     const dispatch = useReduxDispatch()
+    const navigate = useNavigate()
     const { id } = useParams();
     const [surveyData, surveyDataSet] = useState<any>(null)
     const [surveyModel, surveyModelSet] = useState<Model>()
@@ -41,8 +42,10 @@ const Run = () => {
             
             model
                 .onComplete
-                .add((sender: Model) => {
-                    dispatch(post({postId: id as string, surveyResult: sender.data, surveyResultText: JSON.stringify(sender.data)}))
+                .add(async (sender: Model) => {
+                    await dispatch(post({postId: id as string, surveyResult: sender.data, surveyResultText: JSON.stringify(sender.data)}))
+                    // Navigate to home page
+                    navigate('/')
                 })
             
             // Prevent completion if any required question is not answered
@@ -54,7 +57,7 @@ const Run = () => {
             
             surveyModelSet(model)
         })()
-    }, [dispatch, id])
+    }, [dispatch, id, navigate])
 
     return (<>
         {surveyData === null && <div>Loading...</div>}

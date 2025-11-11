@@ -16,6 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON public.users (email);
 -- Link results to users (each user can have many results)
 ALTER TABLE public.results
   ADD COLUMN IF NOT EXISTS user_id uuid NULL,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now(),
   ADD CONSTRAINT fk_results_user FOREIGN KEY (user_id)
     REFERENCES public.users(id) ON DELETE SET NULL;
 

@@ -14,3 +14,40 @@ export const post = createAsyncThunk('results/post', async (data: {postId: strin
   const response = await axios.post(apiBaseAddress + '/post', data);
   return response.data
 })
+
+export interface ConstructStat {
+  name: string
+  title: string
+  average: number | null
+  min: number | null
+  max: number | null
+  count: number
+}
+
+export interface MoodData {
+  period: string
+  constructs: ConstructStat[]
+  hasData: boolean
+  totalResponses: number
+}
+
+export const loadStudentMood = createAsyncThunk(
+  'results/loadStudentMood',
+  async ({ surveyId, period }: { surveyId: string; period: 'today' | '7days' }) => {
+    const response = await axios.get(apiBaseAddress + `/student/mood?surveyId=${surveyId}&period=${period}`)
+    return response.data as MoodData
+  }
+)
+
+export interface MoodHistoryData {
+  constructs: Array<{ name: string; title: string }>
+  data: Array<{ date: string; [constructName: string]: string | number | null }>
+}
+
+export const loadStudentMoodHistory = createAsyncThunk(
+  'results/loadStudentMoodHistory',
+  async (surveyId: string) => {
+    const response = await axios.get(apiBaseAddress + `/student/mood/history?surveyId=${surveyId}`)
+    return response.data as MoodHistoryData
+  }
+)

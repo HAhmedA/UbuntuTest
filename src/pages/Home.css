@@ -109,7 +109,89 @@
   margin-top: 16px;
 }
 
+.mood-card-clickable {
+  cursor: pointer;
+}
+
+.mood-card-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.mood-card-content {
+  margin-top: 16px;
+}
+
+.mood-constructs-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.mood-construct-item {
+  background: #F9FAFB;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #E5E7EB;
+}
+
+.mood-construct-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 8px;
+  text-transform: capitalize;
+}
+
+.mood-construct-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mood-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.mood-stat-label {
+  color: #6B7280;
+}
+
+.mood-stat-value {
+  color: #111827;
+  font-weight: 600;
+}
+
+.mood-no-data {
+  text-align: center;
+  color: #6B7280;
+  padding: 40px 20px;
+  font-size: 16px;
+}
+
+.mood-loading {
+  text-align: center;
+  color: #6B7280;
+  padding: 40px 20px;
+  font-size: 16px;
+}
+
 /* Responsive design */
+@media (max-width: 1400px) {
+  .mood-constructs-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 1200px) {
+  .mood-constructs-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .mood-home-header {
     flex-direction: column;
@@ -125,6 +207,16 @@
   
   .fill-survey-button {
     align-self: flex-start;
+  }
+  
+  .mood-constructs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .mood-constructs-grid {
+    grid-template-columns: 1fr;
   }
 }
 

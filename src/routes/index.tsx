@@ -6,6 +6,7 @@ import Edit from "../pages/Edit"
 import Results from "../pages/Results"
 import Login from "../pages/Login"
 import Register from "../pages/Register"
+import MoodHistory from "../pages/MoodHistory"
 import RequireAdmin from "../components/RequireAdmin"
 import RequireAuth from "../components/RequireAuth"
 import { useReduxDispatch, useReduxSelector } from '../redux'
@@ -20,7 +21,7 @@ export const NavBar = () => {
             {user && (
                 <>
                     <span className='sjs-nav-button' style={{ cursor: 'default', color: '#fff' }}>
-                        {user.name || user.email}
+                        Hello, {user.name || user.email}
                     </span>
                     <span className='sjs-nav-button' onClick={() => dispatch(logout())}><span>Logout</span></span>
                 </>
@@ -40,6 +41,7 @@ const Content = (): React.ReactElement => (
             <Route path="/run/:id" element={<RequireAuth><Run/></RequireAuth>}></Route>
             <Route path="/edit/:id" element={<RequireAuth><RequireAdmin><Edit/></RequireAdmin></RequireAuth>}></Route>
             <Route path="/results/:id" element={<RequireAuth><RequireAdmin><Results/></RequireAdmin></RequireAuth>}></Route>
+            <Route path="/mood-history/:id" element={<RequireAuth><MoodHistory/></RequireAuth>}></Route>
             <Route element={<NoMatch/>}></Route>
         </Routes>
     </>
