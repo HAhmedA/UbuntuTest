@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useReduxDispatch } from '../redux'
 import { loadStudentMoodHistory, MoodHistoryData } from '../redux/results'
@@ -8,6 +8,8 @@ import './MoodHistory.css'
 const MoodHistory = () => {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    const period = searchParams.get('period') || 'all'
     const dispatch = useReduxDispatch()
     
     const [historyData, setHistoryData] = useState<MoodHistoryData | null>(null)
@@ -16,7 +18,7 @@ const MoodHistory = () => {
     useEffect(() => {
         if (id) {
             setLoading(true)
-            dispatch(loadStudentMoodHistory(id))
+            dispatch(loadStudentMoodHistory({ surveyId: id, period: period === 'all' ? undefined : period }))
                 .then((result: any) => {
                     setHistoryData(result.payload)
                     setLoading(false)
@@ -25,7 +27,7 @@ const MoodHistory = () => {
                     setLoading(false)
                 })
         }
-    }, [id, dispatch])
+    }, [id, period, dispatch])
     
     if (loading) {
         return (
@@ -51,11 +53,23 @@ const MoodHistory = () => {
         )
     }
     
-    // Format dates for display - show all data over time
-    const formattedData = historyData.data.map(item => ({
-        ...item,
-        date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    }))
+    // Format data for display
+    const formattedData = historyData.data.map(item => {
+        if (historyData.period === 'today' && item.time) {
+            // For today, use time as the x-axis label
+            return {
+                ...item,
+                xLabel: item.time
+            }
+        } else if (item.date) {
+            // For other periods, use date as the x-axis label
+            return {
+                ...item,
+                xLabel: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            }
+        }
+        return item
+    })
     
     // Generate colors for each construct
     const colors = [
@@ -71,14 +85,14 @@ const MoodHistory = () => {
                     ← Back
                 </button>
                 <h1 className='mood-history-title'>
-                    Mood History Over Time
+                    Mood History {historyData.period === 'today' ? '(Today)' : historyData.period === '7days' ? '(Last 7 Days)' : 'Over Time'}
                 </h1>
                 
                 <div className='mood-history-charts'>
                     {historyData.constructs.map((construct, index) => {
                         const constructData = formattedData
                             .map(item => ({
-                                date: item.date,
+                                xLabel: item.xLabel || item.date || item.time,
                                 value: (item as any)[construct.name] !== null && (item as any)[construct.name] !== undefined 
                                     ? Number((item as any)[construct.name]) 
                                     : null
@@ -89,6 +103,8 @@ const MoodHistory = () => {
                             return null
                         }
                         
+                        const xAxisLabel = historyData.period === 'today' ? 'Time' : 'Day'
+                        
                         return (
                             <div key={construct.name} className='mood-history-chart-container'>
                                 <h3 className='mood-history-chart-title'>{construct.title}</h3>
@@ -96,11 +112,12 @@ const MoodHistory = () => {
                                     <LineChart data={constructData}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis 
-                                            dataKey="date" 
+                                            dataKey="xLabel" 
                                             tick={{ fontSize: 12 }}
-                                            angle={-45}
-                                            textAnchor="end"
-                                            height={60}
+                                            angle={historyData.period === 'today' ? 0 : -45}
+                                            textAnchor={historyData.period === 'today' ? 'middle' : 'end'}
+                                            height={historyData.period === 'today' ? 40 : 60}
+                                            label={{ value: xAxisLabel, position: 'insideBottom', offset: -5 }}
                                         />
                                         <YAxis 
                                             domain={[1, 5]}

@@ -41,13 +41,23 @@ export const loadStudentMood = createAsyncThunk(
 
 export interface MoodHistoryData {
   constructs: Array<{ name: string; title: string }>
-  data: Array<{ date: string; [constructName: string]: string | number | null }>
+  data: Array<{ 
+    date?: string
+    time?: string
+    timestamp?: string
+    xLabel?: string
+    [constructName: string]: string | number | null | undefined
+  }>
+  period?: string
 }
 
 export const loadStudentMoodHistory = createAsyncThunk(
   'results/loadStudentMoodHistory',
-  async (surveyId: string) => {
-    const response = await axios.get(apiBaseAddress + `/student/mood/history?surveyId=${surveyId}`)
+  async ({ surveyId, period }: { surveyId: string; period?: string }) => {
+    const url = period 
+      ? `${apiBaseAddress}/student/mood/history?surveyId=${surveyId}&period=${period}`
+      : `${apiBaseAddress}/student/mood/history?surveyId=${surveyId}`
+    const response = await axios.get(url)
     return response.data as MoodHistoryData
   }
 )

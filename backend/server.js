@@ -432,6 +432,7 @@ app.get('/api/student/mood/history', requireAuth, async (req, res) => {
     }
 
     const surveyId = req.query.surveyId
+    const period = req.query.period // 'today' or undefined (for all time)
     if (!surveyId) {
       return res.status(400).json({ error: 'surveyId required' })
     }
@@ -459,10 +460,16 @@ app.get('/api/student/mood/history', requireAuth, async (req, res) => {
       })
     }
 
+    // Build date filter for "today" period
+    let dateFilter = ''
+    if (period === 'today') {
+      dateFilter = "AND DATE(created_at) = CURRENT_DATE"
+    }
+
     // Get all results for this user and survey
     const resultsQuery = await pool.query(
       `SELECT id, json, created_at FROM public.results 
-       WHERE postid = $1 AND user_id = $2
+       WHERE postid = $1 AND user_id = $2 ${dateFilter}
        ORDER BY created_at ASC`,
       [surveyId, userId]
     )
@@ -471,53 +478,79 @@ app.get('/api/student/mood/history', requireAuth, async (req, res) => {
       const data = typeof row.json === 'string' ? JSON.parse(row.json) : row.json
       const date = new Date(row.created_at)
       const dateStr = date.toISOString().split('T')[0] // YYYY-MM-DD
+      const timeStr = date.toTimeString().split(' ')[0].substring(0, 5) // HH:MM
 
       return {
         id: row.id,
         date: dateStr,
+        time: timeStr,
         timestamp: row.created_at,
         data
       }
     })
 
-    // Group by date and calculate daily averages for each construct
-    const dailyData = {}
-    results.forEach(result => {
-      if (!dailyData[result.date]) {
-        dailyData[result.date] = {}
-        constructs.forEach(construct => {
-          dailyData[result.date][construct.name] = []
-        })
-      }
-      constructs.forEach(construct => {
-        const value = result.data[construct.name]
-        if (value !== undefined && value !== null) {
-          const numValue = Number(value)
-          if (!isNaN(numValue)) {
-            dailyData[result.date][construct.name].push(numValue)
-          }
-        }
-      })
-    })
+    let chartData = []
 
-    // Calculate daily averages
-    const chartData = Object.keys(dailyData).sort().map(date => {
-      const dayData = { date }
-      constructs.forEach(construct => {
-        const values = dailyData[date][construct.name]
-        if (values.length > 0) {
-          const sum = values.reduce((a, b) => a + b, 0)
-          dayData[construct.name] = Math.round((sum / values.length) * 10) / 10
-        } else {
-          dayData[construct.name] = null
-        }
+    if (period === 'today') {
+      // For today, show individual responses with time
+      chartData = results.map(result => {
+        const point = { time: result.time, timestamp: result.timestamp }
+        constructs.forEach(construct => {
+          const value = result.data[construct.name]
+          if (value !== undefined && value !== null) {
+            const numValue = Number(value)
+            if (!isNaN(numValue)) {
+              point[construct.name] = numValue
+            } else {
+              point[construct.name] = null
+            }
+          } else {
+            point[construct.name] = null
+          }
+        })
+        return point
       })
-      return dayData
-    })
+    } else {
+      // For other periods, group by date and calculate daily averages
+      const dailyData = {}
+      results.forEach(result => {
+        if (!dailyData[result.date]) {
+          dailyData[result.date] = {}
+          constructs.forEach(construct => {
+            dailyData[result.date][construct.name] = []
+          })
+        }
+        constructs.forEach(construct => {
+          const value = result.data[construct.name]
+          if (value !== undefined && value !== null) {
+            const numValue = Number(value)
+            if (!isNaN(numValue)) {
+              dailyData[result.date][construct.name].push(numValue)
+            }
+          }
+        })
+      })
+
+      // Calculate daily averages
+      chartData = Object.keys(dailyData).sort().map(date => {
+        const dayData = { date }
+        constructs.forEach(construct => {
+          const values = dailyData[date][construct.name]
+          if (values.length > 0) {
+            const sum = values.reduce((a, b) => a + b, 0)
+            dayData[construct.name] = Math.round((sum / values.length) * 10) / 10
+          } else {
+            dayData[construct.name] = null
+          }
+        })
+        return dayData
+      })
+    }
 
     res.json({
       constructs: constructs.map(c => ({ name: c.name, title: c.title })),
-      data: chartData
+      data: chartData,
+      period: period || 'all'
     })
   } catch (e) {
     console.error('Student mood history error:', e)
