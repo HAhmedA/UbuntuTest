@@ -159,7 +159,7 @@ const Home = () => {
                             <span>Fill Survey</span>
                         </Link>
                     )}
-                    <h1 className='mood-title'>Your mood</h1>
+                    <h1 className='mood-title'>Overview</h1>
                 </div>
                 
                 <div className='mood-cards-container'>
