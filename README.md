@@ -1,68 +1,82 @@
 [![Node.js CI](https://github.com/surveyjs/surveyjs-react-client/actions/workflows/build-node.js.yml/badge.svg)](https://github.com/surveyjs/surveyjs-react-client/actions/workflows/build-node.js.yml)
 
-# SurveyJS React Application
+# AIEDAI - Survey & Mood Tracking Application
 
-This project is a client-side React application that uses [SurveyJS](https://surveyjs.io/) components. The application displays a list of surveys with the following buttons that perform actions on the surveys:
+This is a comprehensive full-stack application built with **React** and **SurveyJS**. It allows users to create and manage surveys, while also featuring a specialized module for tracking and visualizing student mood and learning attributes over time.
 
-- **Run** - Uses the [SurveyJS Form Library](https://surveyjs.io/form-library/documentation/overview) component to run the survey.
-- **Edit** - Uses the [Survey Creator](https://surveyjs.io/survey-creator/documentation/overview) component to configure the survey.
-- **Results** - Uses the [SurveyJS Dashboard](https://surveyjs.io/dashboard/documentation/overview) component to display survey results as a table.
-- **Remove** - Deletes the survey. 
+## 🚀 Key Features
 
-![My Surveys App](https://user-images.githubusercontent.com/18551316/183420903-7fbcc043-5833-46fe-9910-5aa451045119.png)
+### 📊 Survey Management
+Leveraging the full power of the [SurveyJS](https://surveyjs.io/) ecosystem:
+- **Run Surveys**: Execute dynamic surveys using [SurveyJS Form Library](https://surveyjs.io/form-library/documentation/overview).
+- **Edit Surveys**: Visual designer using [Survey Creator](https://surveyjs.io/survey-creator/documentation/overview).
+- **View Results**: Analyze responses with [SurveyJS Dashboard](https://surveyjs.io/dashboard/documentation/overview).
 
-You can integrate this project with a backend of your choice to create a full-cycle survey management service as shown in the following repos:
+### 📈 Mood History & Analytics
+A committed feature for visualizing longitudinal data:
+- **Interactive Charts**: Built with `recharts` to track various constructs over time (e.g., Efficiency, Anxiety, Motivation).
+- **Time Periods**: View data for "Today", "Last 7 Days", or "All Time".
+- **Detailed Metrics**: visualizations for specific learning constructs like *Self Assessment*, *Help Seeking*, and *Community*.
 
-- [surveyjs-aspnet-mvc](https://github.com/surveyjs/surveyjs-aspnet-mvc)
-- [surveyjs-nodejs](https://github.com/surveyjs/surveyjs-nodejs)
-- [surveyjs-php](https://github.com/surveyjs/surveyjs-php)
+### 🔐 User Management
+- **Authentication**: Secure Login and Registration flows.
+- **State Management**: Powered by **Redux Toolkit** for robust session handling.
 
-## Dockerized Setup (Frontend + Backend + Postgres)
+---
 
-This fork adds a minimal Express backend and a Postgres database, wired via Docker Compose.
+## 🛠️ Technology Stack
+
+- **Frontend**: React 18, TypeScript, Redux Toolkit, React Router v6
+- **Visualization**: Recharts, SurveyJS Analytics
+- **Backend**: Node.js / Express
+- **Database**: PostgreSQL
+
+---
+
+## 🐳 Dockerized Setup (Full Stack)
+
+This is the recommended way to run the application with the Backend and Database.
 
 ### Prerequisites
 - Docker Desktop 4.30+
-- Node 18+ (only if running locally outside Docker)
 
-### One-time build and start
+### Quick Start
+To build and start all services (Frontend, Backend, Postgres):
+
 ```bash
 docker compose up --build -d
 ```
 
-### URLs
-- App: http://localhost:3000
-- API: http://localhost:8080/api
-- Postgres: localhost:5433 (user: postgres, password: password, db: postgres)
+### Access Points
+- **Web App**: http://localhost:3000
+- **API**: http://localhost:8080/api
+- **Postgres**: localhost:5433
+  
 
-### Database seeding and persistence
-- On the first run, Postgres executes SQL from `postgres/initdb/surveyjs.sql` and creates tables and seed rows.
-- Data is persisted in a named volume `pgdata`. Do not use `docker compose down -v` unless you want to reset data.
-
-### Useful commands
+### Useful Commands
 ```bash
-# Tail logs
-docker compose logs -f web
-docker compose logs -f backend
-docker compose logs -f postgres
+# View logs
+docker compose logs -f web       # Frontend logs
+docker compose logs -f backend   # Backend API logs
 
-# Connect to the DB from host
-psql -h localhost -p 5433 -U postgres -d postgres -c "SELECT 1;"
+# Stop and remove containers (persists data)
+docker compose down
 
-# Reset DB (re-seeds on next start)
-docker compose down -v && docker compose up -d
+# Stop and reset database (DELETES DATA)
+docker compose down -v
 ```
 
-### Notes
-- Frontend build-time API base is controlled by `REACT_APP_API_BASE` in `compose.yml`.
-- SPA refreshes are handled by `nginx.conf` (fallback to `index.html`).
-- Session cookies are enabled cross-origin (3000 -> 8080) using axios `withCredentials` and CORS on the backend.
+---
 
-## Original Local Run (Frontend only)
+## 💻 Local Development (Frontend Only)
+
+If you only want to work on the UI and don't need the backend API:
 
 ```bash
-git clone https://github.com/surveyjs/surveyjs-react-client.git
-cd surveyjs-react-client
-npm i
+# Install dependencies
+npm install
+
+# Start development server
 npm start
 ```
+*Note: Features requiring API authentication or database persistence will not work in this mode.*

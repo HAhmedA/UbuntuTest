@@ -8,7 +8,6 @@ RUN npm install --only=production --no-audit --no-fund
 
 # Copy application source
 COPY server.js ./
-COPY annotations.js ./
 
 ENV PORT=8080
 EXPOSE 8080

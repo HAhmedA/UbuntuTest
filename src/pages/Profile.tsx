@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useReduxSelector, useReduxDispatch } from '../redux'
-import { loadProfile, saveProfile } from '../redux/profile'
+import { useReduxSelector } from '../redux'
 import './Profile.css'
 
 const educationLevels = ['Bachelor\'s', 'Master\'s', 'PhD', 'Post Doc']
@@ -86,10 +85,7 @@ const disabilityCategories = {
 
 const Profile = () => {
     const navigate = useNavigate()
-    const dispatch = useReduxDispatch()
     const user = useReduxSelector(state => state.auth.user)
-    const profile = useReduxSelector(state => state.profile.profile)
-    const profileStatus = useReduxSelector(state => state.profile.status)
     const userName = user?.name || user?.email || 'User'
 
     const [educationLevel, setEducationLevel] = useState('')
@@ -97,39 +93,8 @@ const Profile = () => {
     const [major, setMajor] = useState('')
     const [learningFormats, setLearningFormats] = useState<string[]>([])
     const [disabilities, setDisabilities] = useState<string[]>([])
-    const [saving, setSaving] = useState(false)
 
     const availableMajors = fieldOfStudy ? (majorsByField[fieldOfStudy] || []) : []
-
-    // Load profile data when component mounts
-    useEffect(() => {
-        dispatch(loadProfile())
-    }, [dispatch])
-
-    // Populate form when profile is loaded
-    useEffect(() => {
-        if (profile) {
-            setEducationLevel(profile.eduLevel || '')
-            setFieldOfStudy(profile.fieldOfStudy || '')
-            setMajor(profile.major || '')
-            setLearningFormats(Array.isArray(profile.learningFormats) ? profile.learningFormats : [])
-            // Handle disabilities - could be array or object
-            if (Array.isArray(profile.disabilities)) {
-                setDisabilities(profile.disabilities)
-            } else if (typeof profile.disabilities === 'object') {
-                // Convert object format to array
-                const disabilityArray: string[] = []
-                Object.values(profile.disabilities).forEach(categoryDisabilities => {
-                    if (Array.isArray(categoryDisabilities)) {
-                        disabilityArray.push(...categoryDisabilities)
-                    }
-                })
-                setDisabilities(disabilityArray)
-            } else {
-                setDisabilities([])
-            }
-        }
-    }, [profile])
 
     const handleLearningFormatChange = (format: string) => {
         setLearningFormats(prev =>
@@ -147,25 +112,16 @@ const Profile = () => {
         )
     }
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        setSaving(true)
-        try {
-            await dispatch(saveProfile({
-                eduLevel: educationLevel || undefined,
-                fieldOfStudy: fieldOfStudy || undefined,
-                major: major || undefined,
-                learningFormats: learningFormats.length > 0 ? learningFormats : undefined,
-                disabilities: disabilities.length > 0 ? disabilities : undefined
-            })).unwrap()
-            // Show success message or navigate
-            alert('Profile saved successfully!')
-        } catch (error: any) {
-            console.error('Failed to save profile:', error)
-            alert('Failed to save profile. Please try again.')
-        } finally {
-            setSaving(false)
-        }
+        // TODO: Save profile data
+        console.log({
+            educationLevel,
+            fieldOfStudy,
+            major,
+            learningFormats,
+            disabilities
+        })
     }
 
     return (
@@ -281,12 +237,8 @@ const Profile = () => {
                         </div>
 
                         <div className='profile-form-actions'>
-                            <button 
-                                type='submit' 
-                                className='profile-submit-button'
-                                disabled={saving || profileStatus === 'loading'}
-                            >
-                                {saving ? 'Saving...' : 'Save Profile'}
+                            <button type='submit' className='profile-submit-button'>
+                                Save Profile
                             </button>
                         </div>
                     </form>
