@@ -6,11 +6,15 @@ import logger from '../utils/logger.js'
 
 const router = Router()
 
+// Fixed survey configuration
+const FIXED_SURVEY_NAME = 'Self-Regulated Learning Questionnaire'
+
 // Helper to normalize survey rows
 const mapSurveyRow = (row) => ({ id: row.id, name: row.name, json: row.json })
 
-// Default survey template
+// Default survey template with title
 const getDefaultSurveyTemplate = () => ({
+    title: FIXED_SURVEY_NAME,
     pages: [{
         elements: [
             { type: 'rating', name: 'efficiency', title: 'I believe I can accomplish my learning duties and learning tasks efficiently:', mininumRateDescription: 'Strongly disagree', maximumRateDescription: 'Strongly agree' },
@@ -31,6 +35,46 @@ const getDefaultSurveyTemplate = () => ({
     }]
 })
 
+/**
+ * Ensure the fixed Self-Regulated Learning Questionnaire exists.
+ * Called on server startup.
+ */
+export const ensureFixedSurvey = async () => {
+    try {
+        // Check if any survey exists
+        const { rows } = await pool.query('SELECT id FROM public.surveys LIMIT 1')
+
+        if (rows.length === 0) {
+            // No surveys exist, create the fixed one
+            const id = uuidv4()
+            const json = getDefaultSurveyTemplate()
+            await pool.query(
+                'INSERT INTO public.surveys (id, name, json) VALUES ($1, $2, $3::jsonb)',
+                [id, FIXED_SURVEY_NAME, JSON.stringify(json)]
+            )
+            logger.info(`Fixed survey "${FIXED_SURVEY_NAME}" created with id: ${id}`)
+        } else {
+            // Update existing survey to have the correct title in JSON
+            const existingSurvey = await pool.query('SELECT id, json FROM public.surveys LIMIT 1')
+            if (existingSurvey.rows[0]) {
+                const surveyJson = existingSurvey.rows[0].json || {}
+                if (!surveyJson.title || surveyJson.title !== FIXED_SURVEY_NAME) {
+                    surveyJson.title = FIXED_SURVEY_NAME
+                    await pool.query(
+                        'UPDATE public.surveys SET name = $2, json = $3::jsonb WHERE id = $1',
+                        [existingSurvey.rows[0].id, FIXED_SURVEY_NAME, JSON.stringify(surveyJson)]
+                    )
+                    logger.info(`Updated existing survey to "${FIXED_SURVEY_NAME}"`)
+                }
+            }
+            logger.info(`Fixed survey "${FIXED_SURVEY_NAME}" already exists`)
+        }
+    } catch (e) {
+        logger.error(`Error ensuring fixed survey: ${e.message}`)
+        throw e
+    }
+}
+
 // Get all surveys
 router.get('/getActive', async (req, res) => {
     try {
@@ -38,68 +82,6 @@ router.get('/getActive', async (req, res) => {
         res.json(rows.map(mapSurveyRow))
     } catch (e) {
         logger.error(`Get surveys error: ${e.message}`)
-        res.status(500).json({ error: 'db_error', details: String(e) })
-    }
-})
-
-// Create new survey (GET)
-router.get('/create', async (req, res) => {
-    try {
-        const id = uuidv4()
-        const name = 'New Survey'
-        const json = getDefaultSurveyTemplate()
-        const { rows } = await pool.query(
-            'INSERT INTO public.surveys (id, name, json) VALUES ($1, $2, $3::jsonb) RETURNING id, name, json',
-            [id, name, JSON.stringify(json)]
-        )
-        logger.info(`Survey created: ${id}`)
-        res.json(mapSurveyRow(rows[0]))
-    } catch (e) {
-        logger.error(`Create survey error: ${e.message}`)
-        res.status(500).json({ error: 'db_error', details: String(e) })
-    }
-})
-
-// Create new survey (POST)
-router.post('/create', async (req, res) => {
-    try {
-        const id = uuidv4()
-        const name = 'New Survey'
-        const json = getDefaultSurveyTemplate()
-        const { rows } = await pool.query(
-            'INSERT INTO public.surveys (id, name, json) VALUES ($1, $2, $3::jsonb) RETURNING id, name, json',
-            [id, name, JSON.stringify(json)]
-        )
-        logger.info(`Survey created: ${id}`)
-        res.json(mapSurveyRow(rows[0]))
-    } catch (e) {
-        logger.error(`Create survey error: ${e.message}`)
-        res.status(500).json({ error: 'db_error', details: String(e) })
-    }
-})
-
-// Delete survey (GET)
-router.get('/delete', async (req, res) => {
-    try {
-        const id = req.query.id
-        await pool.query('DELETE FROM public.surveys WHERE id = $1', [id])
-        logger.info(`Survey deleted: ${id}`)
-        res.json({ id })
-    } catch (e) {
-        logger.error(`Delete survey error: ${e.message}`)
-        res.status(500).json({ error: 'db_error', details: String(e) })
-    }
-})
-
-// Delete survey (POST)
-router.post('/delete', async (req, res) => {
-    try {
-        const id = req.body?.id
-        await pool.query('DELETE FROM public.surveys WHERE id = $1', [id])
-        logger.info(`Survey deleted: ${id}`)
-        res.json({ id })
-    } catch (e) {
-        logger.error(`Delete survey error: ${e.message}`)
         res.status(500).json({ error: 'db_error', details: String(e) })
     }
 })
@@ -116,10 +98,14 @@ router.get('/getSurvey', async (req, res) => {
     }
 })
 
-// Update survey JSON
+// Update survey JSON (admin can still edit the survey content)
 router.post('/changeJson', async (req, res) => {
     try {
         const { id, json } = req.body || {}
+        // Ensure the title is always preserved
+        if (json && !json.title) {
+            json.title = FIXED_SURVEY_NAME
+        }
         const { rows } = await pool.query(
             'UPDATE public.surveys SET json = $2::jsonb WHERE id = $1 RETURNING id, name, json',
             [id, JSON.stringify(json)]

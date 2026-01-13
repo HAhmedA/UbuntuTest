@@ -127,6 +127,16 @@
   color: #D97706;
 }
 
+/* Fluctuating trend - distinct orange/amber to indicate variable pattern */
+.mood-history-annotation.trend-fluctuating {
+  background: linear-gradient(135deg, #FFEDD5 0%, #FED7AA 100%);
+  border-left: 4px solid #F97316;
+}
+
+.mood-history-annotation.trend-fluctuating .annotation-icon {
+  color: #EA580C;
+}
+
 /* Responsive annotation */
 @media (max-width: 768px) {
   .mood-history-annotation {

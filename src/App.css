@@ -1,4 +1,3 @@
-
 body {
   margin: 0;
   background: #f7f8fa;
@@ -15,7 +14,7 @@ body {
 
 .sjs-app__header {
   background: linear-gradient(90deg, #850b0b 0%, #850b0b 100%);
-  box-shadow: 0 2px 8px rgba(133,11,11,0.15);
+  box-shadow: 0 2px 8px rgba(133, 11, 11, 0.15);
   padding: 0;
   position: sticky;
   top: 0;
@@ -58,7 +57,7 @@ body {
 
 .sjs-nav-button:hover,
 .sjs-nav-button.active {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
   text-decoration: none;
 }
@@ -96,7 +95,7 @@ body {
   width: 100%;
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 2px 16px rgba(30,143,255,0.06);
+  box-shadow: 0 2px 16px rgba(30, 143, 255, 0.06);
   padding: 32px 24px 40px 24px;
   min-height: 500px;
 }
@@ -150,21 +149,98 @@ h1 {
   height: calc(100% - 130px);
 }
 
-.sjs-results-container {
-  min-height: calc(100% - 88px);
-  padding: 0;
-}
-
-.sjs-results-content {
-  height: 100%;
-}
-
-.sjs-results-placeholder {
-  line-height: 200px;
-  text-align: center;
-  border: 1px dotted lightgray;
-}
-
 .sa-commercial {
   box-sizing: border-box;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+
+/* Tablet breakpoint */
+@media (max-width: 768px) {
+  .sjs-app__header-inner {
+    padding: 0 16px;
+    height: 56px;
+  }
+
+  .sjs-app__logo {
+    height: 40px;
+    margin-right: 8px;
+  }
+
+  .sjs-nav-button {
+    font-size: 14px;
+    padding: 0 6px;
+    line-height: 36px;
+  }
+
+  .sjs-nav-button-gold {
+    padding: 1px 12px !important;
+  }
+
+  .sjs-nav-button-grouped {
+    margin-left: 8px !important;
+  }
+
+  .sjs-app__content {
+    margin: 16px 12px 0 12px;
+    padding: 20px 16px 24px 16px;
+    border-radius: 12px;
+    min-height: auto;
+    width: auto;
+  }
+
+  .sjs-app__footer-inner {
+    padding: 16px;
+    font-size: 13px;
+  }
+
+  h1 {
+    padding-left: 0;
+    font-size: 1.5rem;
+  }
+
+  .sjs-client-app__content--surveys-list,
+  .sjs-client-app__content--about {
+    max-width: 100%;
+  }
+}
+
+/* Mobile breakpoint */
+@media (max-width: 480px) {
+  .sjs-app__header-inner {
+    padding: 0 12px;
+    height: 52px;
+    flex-wrap: wrap;
+  }
+
+  .sjs-app__logo {
+    height: 36px;
+  }
+
+  .sjs-nav-button {
+    font-size: 12px;
+    padding: 0 4px;
+    line-height: 32px;
+  }
+
+  .sjs-nav-button-gold {
+    padding: 1px 8px !important;
+    font-size: 12px;
+  }
+
+  .sjs-nav-button-grouped {
+    margin-left: 4px !important;
+  }
+
+  .sjs-app__content {
+    margin: 12px 8px 0 8px;
+    padding: 16px 12px 20px 12px;
+    border-radius: 8px;
+  }
+
+  h1 {
+    font-size: 1.25rem;
+  }
 }

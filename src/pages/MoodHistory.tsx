@@ -19,6 +19,7 @@ const getTrendColorClass = (trend: string, isInverted: boolean): string => {
         switch (trend) {
             case 'improving': return 'trend-good'      // Anxiety decreasing = good
             case 'declining': return 'trend-bad'      // Anxiety increasing = bad
+            case 'fluctuating': return 'trend-fluctuating' // Fluctuating = needs attention
             case 'stable_high': return 'trend-bad'    // High anxiety = bad
             case 'stable_low': return 'trend-good'    // Low anxiety = good
             default: return 'trend-neutral'
@@ -28,6 +29,7 @@ const getTrendColorClass = (trend: string, isInverted: boolean): string => {
     switch (trend) {
         case 'improving': return 'trend-good'
         case 'declining': return 'trend-bad'
+        case 'fluctuating': return 'trend-fluctuating'
         case 'stable_high': return 'trend-good'
         case 'stable_low': return 'trend-bad'
         default: return 'trend-neutral'
@@ -39,6 +41,7 @@ const getTrendIcon = (trend: string): string => {
     switch (trend) {
         case 'improving': return '↗'
         case 'declining': return '↘'
+        case 'fluctuating': return '↕'
         default: return '→'
     }
 }

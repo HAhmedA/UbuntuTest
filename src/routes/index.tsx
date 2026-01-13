@@ -3,7 +3,6 @@ import { Route, NavLink, Routes } from 'react-router-dom'
 import Home from "../pages/Home"
 import Run from "../pages/Run"
 import Edit from "../pages/Edit"
-import Results from "../pages/Results"
 import Login from "../pages/Login"
 import Register from "../pages/Register"
 import MoodHistory from "../pages/MoodHistory"
@@ -38,15 +37,14 @@ const NoMatch = () => (<><h1>404</h1></>)
 const Content = (): React.ReactElement => (
     <>
         <Routes>
-            <Route path="/login" element={<Login/>}></Route>
-            <Route path="/register" element={<Register/>}></Route>
-            <Route path="/" element={<RequireAuth><Home/></RequireAuth>}></Route>
-            <Route path="/run/:id" element={<RequireAuth><Run/></RequireAuth>}></Route>
-            <Route path="/edit/:id" element={<RequireAuth><RequireAdmin><Edit/></RequireAdmin></RequireAuth>}></Route>
-            <Route path="/results/:id" element={<RequireAuth><RequireAdmin><Results/></RequireAdmin></RequireAuth>}></Route>
-            <Route path="/mood-history/:id" element={<RequireAuth><MoodHistory/></RequireAuth>}></Route>
-            <Route path="/profile" element={<RequireAuth><Profile/></RequireAuth>}></Route>
-            <Route element={<NoMatch/>}></Route>
+            <Route path="/login" element={<Login />}></Route>
+            <Route path="/register" element={<Register />}></Route>
+            <Route path="/" element={<RequireAuth><Home /></RequireAuth>}></Route>
+            <Route path="/run/:id" element={<RequireAuth><Run /></RequireAuth>}></Route>
+            <Route path="/edit/:id" element={<RequireAuth><RequireAdmin><Edit /></RequireAdmin></RequireAuth>}></Route>
+            <Route path="/mood-history/:id" element={<RequireAuth><MoodHistory /></RequireAuth>}></Route>
+            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>}></Route>
+            <Route element={<NoMatch />}></Route>
         </Routes>
     </>
 )

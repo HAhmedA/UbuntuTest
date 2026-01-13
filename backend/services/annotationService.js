@@ -30,6 +30,7 @@ const CONCEPT_SHORT_NAMES = {
 const TREND_DESCRIPTIONS = {
     improving: 'improving',
     declining: 'declining',
+    fluctuating: 'fluctuating',
     stable_high: 'consistently high',
     stable_avg: 'stable',
     stable_low: 'consistently low'
@@ -39,6 +40,7 @@ const TREND_DESCRIPTIONS = {
 const TREND_DESCRIPTIONS_INVERTED = {
     improving: 'decreasing (which is good)',
     declining: 'increasing (which needs attention)',
+    fluctuating: 'fluctuating',
     stable_high: 'consistently high (needs attention)',
     stable_avg: 'moderate',
     stable_low: 'consistently low (which is good)'
@@ -66,10 +68,11 @@ function classifyStableLevel(avgScore) {
 /**
  * Calculate trend from a series of scores
  * Compares earlier half vs recent half of scores
+ * Also detects fluctuating patterns when data oscillates significantly
  * 
  * @param {number[]} scores - Array of scores in chronological order
  * @param {boolean} isInverted - If true, improving means scores going DOWN
- * @returns {string} - 'improving', 'declining', 'stable_high', 'stable_avg', 'stable_low'
+ * @returns {string} - 'improving', 'declining', 'fluctuating', 'stable_high', 'stable_avg', 'stable_low'
  */
 function calculateTrend(scores, isInverted = false) {
     if (scores.length === 0) {
@@ -78,6 +81,32 @@ function calculateTrend(scores, isInverted = false) {
 
     if (scores.length === 1) {
         return classifyStableLevel(scores[0]);
+    }
+
+    // Check for fluctuating pattern before other calculations
+    // Fluctuating = significant direction changes AND high variance
+    if (scores.length >= 3) {
+        // Count direction changes
+        let directionChanges = 0;
+        for (let i = 1; i < scores.length - 1; i++) {
+            const prevDelta = scores[i] - scores[i - 1];
+            const nextDelta = scores[i + 1] - scores[i];
+            // A direction change occurs when we go up then down, or down then up
+            if ((prevDelta > 0 && nextDelta < 0) || (prevDelta < 0 && nextDelta > 0)) {
+                directionChanges++;
+            }
+        }
+
+        // Calculate variance to ensure the fluctuation is significant
+        const avg = average(scores);
+        const variance = scores.reduce((sum, s) => sum + Math.pow(s - avg, 2), 0) / scores.length;
+        const range = Math.max(...scores) - Math.min(...scores);
+
+        // If there's at least one direction change and the range is >= 2 (significant oscillation)
+        // OR if variance is high relative to the possible range (0.5 threshold for 1-5 scale)
+        if (directionChanges >= 1 && range >= 2) {
+            return 'fluctuating';
+        }
     }
 
     // Split into earlier and recent halves

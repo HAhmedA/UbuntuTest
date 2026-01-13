@@ -6,6 +6,7 @@ import connectPgSimple from 'connect-pg-simple'
 import pool from './config/database.js'
 import logger from './utils/logger.js'
 import routes from './routes/index.js'
+import { ensureFixedSurvey } from './routes/surveys.js'
 
 import helmet from 'helmet'
 
@@ -87,6 +88,13 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`Backend listening on http://0.0.0.0:${PORT}`)
+
+  // Ensure the fixed Self-Regulated Learning Questionnaire exists
+  try {
+    await ensureFixedSurvey()
+  } catch (e) {
+    logger.error('Failed to initialize fixed survey:', e.message)
+  }
 })

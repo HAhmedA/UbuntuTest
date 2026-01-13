@@ -3,12 +3,6 @@ import { createAsyncThunk } from '@reduxjs/toolkit'
 import axios from 'axios'
 import { apiBaseAddress } from '../models/survey'
 
-export const load = createAsyncThunk('results/load', async (id: string) => {
-  // Fetch results rows for a given survey/post id
-  const response = await axios.get(apiBaseAddress + '/results?postId=' + id)
-  return response.data
-})
-
 export const post = createAsyncThunk('results/post', async (data: { postId: string, surveyResult: any, surveyResultText: string }) => {
   // Persist a survey result; backend stores the JSON payload in public.questionnaire_results
   const response = await axios.post(apiBaseAddress + '/post', data);
@@ -70,7 +64,7 @@ export interface Annotation {
   minScore: number
   maxScore: number
   responseCount: number
-  trend: 'improving' | 'declining' | 'stable_high' | 'stable_avg' | 'stable_low'
+  trend: 'improving' | 'declining' | 'fluctuating' | 'stable_high' | 'stable_avg' | 'stable_low'
   isInverted: boolean
   hasSufficientData: boolean
   distinctDayCount: number | null

@@ -3,7 +3,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #850b0b 0%, #850b0b 100%); /* Dark red gradient matching header */
+  background: linear-gradient(135deg, #850b0b 0%, #850b0b 100%);
+  /* Dark red gradient matching header */
   padding: 20px;
 }
 
@@ -155,3 +156,73 @@
   margin-top: 12px;
 }
 
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+
+/* Tablet breakpoint */
+@media (max-width: 768px) {
+  .login-card {
+    padding: 40px 32px;
+    max-width: 420px;
+  }
+
+  .login-title {
+    font-size: 36px;
+  }
+
+  .login-tagline {
+    font-size: 15px;
+  }
+}
+
+/* Mobile breakpoint */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 16px;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+
+  .login-card {
+    padding: 32px 24px;
+    border-radius: 12px;
+    max-width: 100%;
+  }
+
+  .login-header {
+    margin-bottom: 24px;
+  }
+
+  .login-title {
+    font-size: 28px;
+  }
+
+  .login-tagline {
+    font-size: 14px;
+  }
+
+  .login-form {
+    gap: 16px;
+  }
+
+  .form-group input[type="email"],
+  .form-group input[type="password"] {
+    padding: 10px 14px;
+    font-size: 16px;
+    /* Prevents zoom on iOS */
+  }
+
+  .login-button {
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+
+  .login-footer p {
+    font-size: 13px;
+  }
+
+  .password-reset-text {
+    font-size: 11px;
+  }
+}
