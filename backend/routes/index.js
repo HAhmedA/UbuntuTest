@@ -7,6 +7,7 @@ import moodRoutes from './mood.js'
 import annotationRoutes from './annotations.js'
 import profileRoutes from './profile.js'
 import adminRoutes from './admin.js'
+import chatRoutes from './chat.js'
 
 import { login, logout, getMe } from '../controllers/authController.js'
 
@@ -28,5 +29,6 @@ router.use('/student/mood', moodRoutes)
 router.use('/annotations', annotationRoutes)
 router.use('/profile', profileRoutes)
 router.use('/admin', adminRoutes)
+router.use('/chat', chatRoutes)
 
 export default router
