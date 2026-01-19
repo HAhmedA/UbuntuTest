@@ -213,6 +213,17 @@ const Profile = () => {
                 </button>
                 <h1 className='profile-title'>{userName}'s profile</h1>
                 <div className='profile-content'>
+                    <div style={{
+                        backgroundColor: '#eff6ff',
+                        borderLeft: '4px solid #3b82f6',
+                        padding: '1rem',
+                        marginBottom: '1.5rem',
+                        borderRadius: '0 4px 4px 0',
+                        fontSize: '0.9rem',
+                        color: '#1e3a8a'
+                    }}>
+                        <strong>Transparency Note:</strong> Filling out this profile is optional. This information is used solely to personalize the AI chatbot's guidance to your specific context (e.g., your field of study and learning preferences). Calling the chatbot will use this data to provide better answers.
+                    </div>
                     <form onSubmit={handleStudentSubmit} className='profile-form'>
                         {/* Education Level */}
                         <div className='profile-form-group'>

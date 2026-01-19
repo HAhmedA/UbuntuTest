@@ -75,6 +75,7 @@ router.get('/initial', async (req, res) => {
             messages: null,
             sessionId: result.sessionId,
             hasExistingSession: false,
+            suggestedPrompts: result.suggestedPrompts,
             success: result.success
         })
     } catch (error) {
@@ -111,6 +112,7 @@ router.post('/message', async (req, res) => {
         res.json({
             response: result.response,
             sessionId: result.sessionId,
+            suggestedPrompts: result.suggestedPrompts,
             success: result.success
         })
     } catch (error) {

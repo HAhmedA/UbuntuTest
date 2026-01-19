@@ -137,12 +137,111 @@ async function getUserSessions(userId, limit = 10) {
 }
 
 /**
+ * Generate contextual follow-up prompt suggestions based on the conversation
+ * Creates diverse, specific prompts that directly reflect the chatbot's response
+ * 
+ * @param {string} assistantResponse - The assistant's response to base suggestions on
+ * @param {string} userMessage - The original user message for context
+ * @returns {Promise<string[]>} - Array of 3-4 suggested follow-up prompts
+ */
+async function generateFollowUpPrompts(assistantResponse, userMessage) {
+    const defaultPrompts = [
+        "What are the best studying strategies based on my profile?",
+        "Analyze my SRL data",
+        "What are my learning trends?",
+        "How can I improve based on my history?"
+    ]
+
+    try {
+        const messages = [
+            {
+                role: 'system',
+                content: `You generate follow-up questions for students in a learning chatbot.
+
+CRITICAL RULES:
+1. Extract 2-3 SPECIFIC topics/concepts mentioned in the assistant's response
+2. Create questions that DIRECTLY reference those specific topics
+3. Questions must feel like natural conversation continuations
+4. Mix question types: "How", "Why", "Can you", "What about"
+5. Each question under 50 characters
+6. NO generic questions like "tell me more" or "how can I improve"
+7. Return ONLY a JSON array of 4 strings
+
+EXAMPLE:
+If response mentions "time management struggles" and "high motivation":
+["How do I manage my time better?", "Why is my motivation high?", "Tips for meeting deadlines?", "What affects my focus?"]
+
+If response mentions "anxiety levels" and "seeking help":
+["How can I reduce study anxiety?", "When should I ask for help?", "What causes my stress?", "Who can I reach out to?"]`
+            },
+            {
+                role: 'user',
+                content: `STUDENT ASKED: "${userMessage}"
+
+ASSISTANT RESPONDED (excerpt):
+"${assistantResponse.substring(0, 600)}"
+
+Generate 4 specific follow-up questions based on the topics in this response:`
+            }
+        ]
+
+        const response = await chatCompletionWithRetry(messages, {
+            maxTokens: 150,
+            temperature: 0.8
+        })
+
+        logger.debug(`Prompt generation raw response: ${response}`)
+
+        // Parse the JSON response - handle potential markdown wrapping
+        const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim()
+        let parsed
+        try {
+            parsed = JSON.parse(cleanResponse)
+        } catch (e) {
+            // Try to find JSON array in the text if direct parse fails
+            const arrayMatch = cleanResponse.match(/\[.*\]/s)
+            if (arrayMatch) {
+                try {
+                    parsed = JSON.parse(arrayMatch[0])
+                } catch (e2) {
+                    logger.warn(`Failed to parse prompts JSON: ${e.message}`)
+                    return defaultPrompts
+                }
+            } else {
+                logger.warn(`No JSON array found in prompt response`)
+                return defaultPrompts
+            }
+        }
+
+        if (Array.isArray(parsed) && parsed.length >= 3) {
+            // Filter and validate prompts
+            const validPrompts = parsed
+                .filter(p => typeof p === 'string' && p.length > 3 && p.length <= 75) // Relaxed length slightly
+                .filter(p => !p.toLowerCase().includes('tell me more'))
+                .slice(0, 4)
+
+            logger.info(`Generated ${validPrompts.length} valid prompts`)
+
+            if (validPrompts.length >= 3) {
+                return validPrompts
+            }
+        }
+
+        logger.warn('Generated prompts not in expected format, using defaults', { parsed })
+        return defaultPrompts
+    } catch (error) {
+        logger.warn('Failed to generate follow-up prompts:', error.message)
+        return defaultPrompts
+    }
+}
+
+/**
  * Send a message and get a response
  * This is the main orchestration function
  * 
  * @param {string} userId - User ID
  * @param {string} userMessage - The user's message
- * @returns {Promise<{success: boolean, response: string, sessionId: string}>}
+ * @returns {Promise<{success: boolean, response: string, sessionId: string, suggestedPrompts: string[]}>}
  */
 async function sendMessage(userId, userMessage) {
     try {
@@ -169,7 +268,7 @@ async function sendMessage(userId, userMessage) {
         }
 
         // Get system instructions for alignment check
-        const systemInstructions = await getSystemInstructionsForAlignment()
+        const systemInstructions = await getSystemInstructionsForAlignment(userId)
 
         // Generate response with alignment checking
         const result = await getAlignedResponse(
@@ -198,10 +297,14 @@ async function sendMessage(userId, userMessage) {
             [sessionId]
         )
 
+        // Generate dynamic follow-up prompts (non-blocking, with fallback)
+        const suggestedPrompts = await generateFollowUpPrompts(result.content, userMessage)
+
         return {
             success: true,
             response: result.content,
-            sessionId
+            sessionId,
+            suggestedPrompts
         }
 
     } catch (error) {
@@ -284,10 +387,15 @@ async function generateInitialGreeting(userId) {
             await saveMessage(sessionId, userId, 'assistant', noDataGreeting, { passed: true, retries: 0 })
 
             logger.info(`User ${userId} has no SRL data - returned hardcoded greeting`)
+
+            // Generate dynamic follow-up prompts for hardcoded greeting too
+            const suggestedPrompts = await generateFollowUpPrompts(noDataGreeting, 'Hello, I just started a new session')
+
             return {
                 success: true,
                 greeting: noDataGreeting,
-                sessionId
+                sessionId,
+                suggestedPrompts
             }
         }
 
@@ -301,12 +409,23 @@ async function generateInitialGreeting(userId) {
             return { success: true, greeting: GREETING_FALLBACK, sessionId }
         }
 
-        // Generate new greeting using LLM (only when we have actual data)
+        // Generate new greeting using LLM with alignment checking
         logger.chat(`Assembling initial greeting prompt`, { userId })
         const messages = await assembleInitialGreetingPrompt(userId)
-        logger.chat(`Prompt assembled, calling LLM`, { userId, messageCount: messages.length })
-        const greeting = await chatCompletionWithRetry(messages)
-        logger.chat(`LLM greeting received`, { userId, greetingLength: greeting.length })
+        logger.chat(`Prompt assembled, calling LLM with alignment`, { userId, messageCount: messages.length })
+
+        // Get system instructions for alignment check
+        const systemInstructions = await getSystemInstructionsForAlignment(userId)
+
+        // Generate aligned greeting (same as regular messages)
+        const result = await getAlignedResponse(
+            async () => await chatCompletionWithRetry(messages),
+            'Generate a personalized greeting for the user',  // Synthetic user query for context
+            systemInstructions
+        )
+
+        const greeting = result.content
+        logger.chat(`LLM greeting received`, { userId, greetingLength: greeting.length, passed: result.passed })
 
         // Cache the greeting
         await pool.query(
@@ -314,13 +433,20 @@ async function generateInitialGreeting(userId) {
             [greeting, sessionId]
         )
 
-        // Save as assistant message
-        await saveMessage(sessionId, userId, 'assistant', greeting, { passed: true, retries: 0 })
+        // Save as assistant message with actual alignment result
+        await saveMessage(sessionId, userId, 'assistant', greeting, {
+            passed: result.passed,
+            retries: result.retries
+        })
+
+        // Generate dynamic follow-up prompts based on the greeting
+        const suggestedPrompts = await generateFollowUpPrompts(greeting, 'Hello, I just started a new session')
 
         return {
             success: true,
             greeting,
-            sessionId
+            sessionId,
+            suggestedPrompts
         }
 
     } catch (error) {

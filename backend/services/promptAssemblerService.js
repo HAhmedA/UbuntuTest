@@ -320,7 +320,7 @@ async function assembleInitialGreetingPrompt(userId) {
         hasNoData: annotations.includes('No questionnaire data')
     })
 
-    // Note: Greeting behavior is defined in system_prompt.txt under GREETING BEHAVIOR
+    // Note: Greeting behavior is defined in system_prompt.txt under Greeting Rules
     const assembledSystem = `${systemPrompt}
 
 ---
@@ -335,7 +335,7 @@ PREVIOUS CHATS (SUMMARIZED):
 ${summaries}
 
 CURRENT SESSION:
-This is a ${userType}. Generate a personalized greeting following the GREETING BEHAVIOR instructions.
+This is a ${userType}. Generate a personalized greeting following the Greeting Rules.
 `
 
     return [
@@ -345,12 +345,40 @@ This is a ${userType}. Generate a personalized greeting following the GREETING B
 }
 
 /**
- * Extract just the system instructions part for alignment checking
+ * Assemble system instructions for alignment checking
+ * MUST include the same context (annotations, user profile) as the main prompt
+ * so the judge knows what data the assistant is working with.
  * 
+ * @param {string} userId - User ID (optional, but needed for context)
  * @returns {Promise<string>}
  */
-async function getSystemInstructionsForAlignment() {
-    return await getSystemPrompt()
+async function getSystemInstructionsForAlignment(userId = null) {
+    const baseSystemPrompt = await getSystemPrompt()
+
+    if (!userId) {
+        return baseSystemPrompt
+    }
+
+    // accurate context for the judge
+    const [userContext, annotations, summaries] = await Promise.all([
+        getUserContext(userId),
+        getAnnotationsForChatbot(pool, userId),
+        getSummariesForChatbot(userId)
+    ])
+
+    return `${baseSystemPrompt}
+
+---
+
+USER CONTEXT & PREFERENCES:
+${userContext}
+
+ANNOTATED QUESTIONNAIRE INSIGHTS:
+${annotations}
+
+PREVIOUS CHATS (SUMMARIZED):
+${summaries}
+`
 }
 
 /**

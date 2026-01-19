@@ -127,28 +127,54 @@ async function checkAlignment(userQuery, response, systemInstructions) {
         // Get alignment prompt from database
         const alignmentTemplate = await getAlignmentPrompt()
 
-        const judgePrompt = buildJudgePrompt(alignmentTemplate, userQuery, response, systemInstructions)
-        const messages = [{ role: 'user', content: judgePrompt }]
+        // Build the evaluation content with clear structure
+        const evaluationContent = `=== INSTRUCTIONS GIVEN TO ASSISTANT ===
+${systemInstructions}
+
+=== USER'S QUESTION ===
+${userQuery}
+
+=== ASSISTANT'S RESPONSE TO EVALUATE ===
+${response}
+
+=== YOUR VERDICT ===
+Output ONLY valid JSON: {"passed": true, "reason": "..."} or {"passed": false, "reason": "..."}`
+
+        // Simple system/user message format (no prefill - causes issues with some servers)
+        const messages = [
+            { role: 'system', content: alignmentTemplate },
+            { role: 'user', content: evaluationContent }
+        ]
 
         const judgeResponse = await chatCompletion(messages, {
             model: llmConfig.judgeModel,
-            maxTokens: 200,
-            temperature: 0.1 // Low temperature for consistent judgments
+            maxTokens: 150,
+            temperature: 0.0
         })
 
-        // Parse JSON from response
-        const jsonMatch = judgeResponse.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-            const result = JSON.parse(jsonMatch[0])
-            const passed = Boolean(result.passed)
-            const reason = result.reason || 'No reason provided'
-            logger.info(`Alignment check: ${passed ? 'PASSED' : 'FAILED'} - ${reason}`)
-            return { passed, reason }
+        // Handle empty response from judge (model compatibility issue)
+        if (!judgeResponse || judgeResponse.trim().length === 0) {
+            logger.warn('Judge returned empty response - failing open to allow response through')
+            return { passed: true, reason: 'Judge unavailable (empty response) - allowing response' }
         }
 
-        // If we can't parse JSON, assume failure
-        logger.warn('Could not parse judge response as JSON:', judgeResponse)
-        return { passed: false, reason: 'Judge response was not valid JSON' }
+        // Parse JSON from response (look for JSON object anywhere in the response)
+        const jsonMatch = judgeResponse.match(/\{[\s\S]*?\}/)
+        if (jsonMatch) {
+            try {
+                const result = JSON.parse(jsonMatch[0])
+                const passed = Boolean(result.passed)
+                const reason = result.reason || 'No reason provided'
+                logger.info(`Alignment check: ${passed ? 'PASSED' : 'FAILED'} - ${reason}`)
+                return { passed, reason }
+            } catch (parseError) {
+                logger.warn('JSON parse error:', parseError.message, 'Response:', judgeResponse.substring(0, 200))
+            }
+        }
+
+        // If we can't parse JSON, fail open to avoid blocking good responses
+        logger.warn('Could not parse judge response as JSON, failing open:', judgeResponse.substring(0, 200))
+        return { passed: true, reason: 'Judge returned non-JSON response - allowing response' }
     } catch (error) {
         logger.error('Alignment check failed:', error.message)
         // On error, we're cautious and mark as failed

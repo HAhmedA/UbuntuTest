@@ -14,10 +14,10 @@ interface ChatbotProps {
     isLoggedIn: boolean
 }
 
-// Data-source related suggested prompts
-const SUGGESTED_PROMPTS = [
-    "Interpret my SRL data",
-    "Tailor advice based on my profile",
+// Default suggested prompts (fallback when dynamic prompts unavailable)
+const DEFAULT_PROMPTS = [
+    "What are the best studying strategies based on my profile?",
+    "Analyze my SRL data",
     "What are my learning trends?",
     "How can I improve based on my history?"
 ]
@@ -41,6 +41,7 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
     const [showResetConfirm, setShowResetConfirm] = useState(false)
     const [isAwaitingResponse, setIsAwaitingResponse] = useState(false)
     const [isResetting, setIsResetting] = useState(false)
+    const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>(DEFAULT_PROMPTS)
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -136,6 +137,10 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
                     sessionId: data.sessionId,
                     messages: null
                 })
+                // Update suggested prompts if provided
+                if (data.suggestedPrompts && Array.isArray(data.suggestedPrompts) && data.suggestedPrompts.length > 0) {
+                    setSuggestedPrompts(data.suggestedPrompts)
+                }
                 // Show unread badge since we have a NEW message ready
                 setHasUnread(true)
             }
@@ -176,6 +181,10 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
                     content: data.greeting,
                     created_at: new Date().toISOString()
                 }])
+                // Update suggested prompts if provided
+                if (data.suggestedPrompts && Array.isArray(data.suggestedPrompts) && data.suggestedPrompts.length > 0) {
+                    setSuggestedPrompts(data.suggestedPrompts)
+                }
             }
         } catch (error) {
             console.error('Failed to load initial greeting:', error)
@@ -266,6 +275,11 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
                 created_at: new Date().toISOString()
             }])
 
+            // Update suggested prompts with dynamic ones from API (or keep defaults)
+            if (data.suggestedPrompts && Array.isArray(data.suggestedPrompts) && data.suggestedPrompts.length > 0) {
+                setSuggestedPrompts(data.suggestedPrompts)
+            }
+
             // If chat is closed, show unread badge
             if (!isOpen) {
                 setHasUnread(true)
@@ -348,6 +362,8 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
                 setHasMore(false)
                 // Clear cached greeting so we get fresh one next time
                 setCachedGreeting(null)
+                // Reset suggested prompts to defaults
+                setSuggestedPrompts(DEFAULT_PROMPTS)
             }
         } catch (error) {
             console.error('Failed to reset session:', error)
@@ -469,7 +485,7 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
                             <div className="chatbot-suggestions">
                                 <p className="suggestions-label">Try asking:</p>
                                 <div className="suggestions-list">
-                                    {SUGGESTED_PROMPTS.map((prompt, idx) => (
+                                    {suggestedPrompts.map((prompt, idx) => (
                                         <button
                                             key={idx}
                                             className="suggestion-chip"

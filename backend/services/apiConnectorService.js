@@ -9,8 +9,8 @@ const config = {
     provider: process.env.LLM_PROVIDER || 'lmstudio',
     baseUrl: process.env.LLM_BASE_URL || 'http://host.docker.internal:1234',
     mainModel: process.env.LLM_MAIN_MODEL || 'hermes-3-llama-3.2-3b',
-    judgeModel: process.env.LLM_JUDGE_MODEL || 'hermes-3-llama-3.2-3b',
-    maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '1000', 10),
+    judgeModel: process.env.LLM_JUDGE_MODEL || 'qwen2.5-3b-instruct',
+    maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '2000', 10),
     temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7'),
     timeoutMs: parseInt(process.env.LLM_TIMEOUT_MS || '30000', 10),
     apiKey: process.env.LLM_API_KEY || ''
