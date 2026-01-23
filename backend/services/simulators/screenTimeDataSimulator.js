@@ -10,7 +10,7 @@
 // - Session fragmentation patterns
 
 import logger from '../utils/logger.js';
-import { computeJudgments, recomputeBaseline } from './screenTimeJudgmentService.js';
+import { computeJudgments, recomputeBaseline } from '../annotators/screenTimeAnnotationService.js';
 
 // =============================================================================
 // PROFILE-BASED SCREEN TIME PATTERNS

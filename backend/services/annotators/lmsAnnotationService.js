@@ -265,7 +265,11 @@ function composeSentences(judgments) {
  * Compute judgments (and sentences) for a subject over a period
  * Aggregates daily sessions for the period logic
  */
-async function computeJudgments(pool, userId, subjectId, days = 7) {
+/**
+ * Compute judgments (and sentences) for LMS activity over a period
+ * Aggregates daily sessions for the period logic
+ */
+async function computeJudgments(pool, userId, days = 7) {
     // 1. Get aggregated metrics for the period
     const { rows: metricsRows } = await pool.query(
         `SELECT 
@@ -281,8 +285,8 @@ async function computeJudgments(pool, userId, subjectId, days = 7) {
            SUM(forum_views) as forum_views,
            SUM(forum_posts) as forum_posts
          FROM public.lms_sessions
-         WHERE user_id = $1 AND subject_id = $2 AND session_date >= CURRENT_DATE - INTERVAL '${days} days'`,
-        [userId, subjectId]
+         WHERE user_id = $1 AND session_date >= CURRENT_DATE - INTERVAL '${days} days'`,
+        [userId]
     );
 
     const metrics = metricsRows[0];
@@ -298,7 +302,7 @@ async function computeJudgments(pool, userId, subjectId, days = 7) {
     }
 
     // 2. Get baseline
-    let baseline = await getOrCreateBaseline(pool, userId, subjectId);
+    let baseline = await getOrCreateBaseline(pool, userId);
 
     // 3. Evaluate Domains
     const volume = evaluateActivityVolume(metrics, baseline);
@@ -319,43 +323,45 @@ async function computeJudgments(pool, userId, subjectId, days = 7) {
     // We just update the 'current window' record
     await pool.query(
         `INSERT INTO public.lms_judgments 
-         (user_id, subject_id, period_start, period_end, sentence_1, sentence_2, judgment_details, computed_at)
-         VALUES ($1, $2, CURRENT_DATE - INTERVAL '${days} days', CURRENT_DATE, $3, $4, $5, NOW())
-         ON CONFLICT (user_id, subject_id, period_start, period_end)
+         (user_id, period_start, period_end, sentence_1, sentence_2, judgment_details, computed_at)
+         VALUES ($1, CURRENT_DATE - INTERVAL '${days} days', CURRENT_DATE, $2, $3, $4, NOW())
+         ON CONFLICT (user_id, period_start, period_end)
          DO UPDATE SET
            sentence_1 = EXCLUDED.sentence_1,
            sentence_2 = EXCLUDED.sentence_2,
            judgment_details = EXCLUDED.judgment_details,
            computed_at = NOW()`,
-        [userId, subjectId, sentences.sentence_1, sentences.sentence_2, JSON.stringify(judgments)]
+        [userId, sentences.sentence_1, sentences.sentence_2, JSON.stringify(judgments)]
     );
 
     return sentences;
 }
 
 /**
- * Get or create baseline for a user/subject
+ * Get or create baseline for a user
  */
-async function getOrCreateBaseline(pool, userId, subjectId) {
+async function getOrCreateBaseline(pool, userId) {
     const { rows } = await pool.query(
-        `SELECT * FROM public.lms_baselines WHERE user_id = $1 AND subject_id = $2`,
-        [userId, subjectId]
+        `SELECT * FROM public.lms_baselines WHERE user_id = $1`,
+        [userId]
     );
 
     if (rows.length > 0) {
         return rows[0];
     }
 
-    // Default baseline values
+    // Default baseline values (fallback if simulator didn't create them)
+    // Assuming Average profile roughly
     await pool.query(
-        `INSERT INTO public.lms_baselines (user_id, subject_id) VALUES ($1, $2)
-         ON CONFLICT (user_id, subject_id) DO NOTHING`,
-        [userId, subjectId]
+        `INSERT INTO public.lms_baselines (user_id, baseline_active_minutes, baseline_sessions, baseline_days_active) 
+         VALUES ($1, 350, 4, 7)
+         ON CONFLICT (user_id) DO NOTHING`, // 50 min * 7
+        [userId]
     );
 
     const result = await pool.query(
-        `SELECT * FROM public.lms_baselines WHERE user_id = $1 AND subject_id = $2`,
-        [userId, subjectId]
+        `SELECT * FROM public.lms_baselines WHERE user_id = $1`,
+        [userId]
     );
     return result.rows[0];
 }
@@ -364,12 +370,12 @@ async function getOrCreateBaseline(pool, userId, subjectId) {
  * Get judgments for chatbot Integration
  */
 async function getJudgmentsForChatbot(pool, userId) {
-    // Get latest judgment for each subject
+    // Get latest judgment
     const { rows } = await pool.query(
         `SELECT * FROM public.lms_judgments 
          WHERE user_id = $1 
          AND period_end = CURRENT_DATE
-         ORDER BY subject_id ASC`,
+         LIMIT 1`,
         [userId]
     );
 
@@ -377,13 +383,10 @@ async function getJudgmentsForChatbot(pool, userId) {
         return "No LMS activity data available yet.";
     }
 
-    let result = "## LMS Activity Analysis\n\n";
-
-    rows.forEach(row => {
-        result += `**Subject ${row.subject_id}**\n`;
-        result += `- ${row.sentence_1}\n`;
-        result += `- ${row.sentence_2}\n\n`;
-    });
+    const row = rows[0];
+    let result = "## LMS Activity Analysis\n";
+    result += `- ${row.sentence_1}\n`;
+    result += `- ${row.sentence_2}\n`;
 
     return result;
 }

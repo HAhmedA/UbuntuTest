@@ -1,8 +1,8 @@
 
 import pg from 'pg';
-import { generateScreenTimeData } from './backend/services/screenTimeDataSimulator.js';
-import { generateSocialMediaData } from './backend/services/socialMediaDataSimulator.js';
-import logger from './backend/utils/logger.js';
+import { generateScreenTimeData } from '../services/simulators/screenTimeDataSimulator.js';
+import { generateSocialMediaData } from '../services/simulators/socialMediaDataSimulator.js';
+import logger from '../utils/logger.js';
 
 const { Pool } = pg;
 

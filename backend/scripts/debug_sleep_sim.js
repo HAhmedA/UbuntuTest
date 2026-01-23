@@ -1,7 +1,7 @@
 
-import pool from './config/database.js';
-import { generateSleepData } from './services/sleepDataSimulator.js';
-import logger from './utils/logger.js';
+import pool from '../config/database.js';
+import { generateSleepData } from '../services/simulators/sleepDataSimulator.js';
+import logger from '../utils/logger.js';
 
 const USER_ID = '4020e3cd-9cd8-49be-982f-ddd4be0d4f0b'; // The problematic user 'terer'
 

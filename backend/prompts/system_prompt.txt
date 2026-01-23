@@ -34,7 +34,6 @@ Self-Regulated Learning patterns from daily questionnaires. Includes:
 ## 6. LMS ACTIVITY ANALYSIS Includes:
 - Activity volume, Engagement distribution, Consistency, Action mix, Discussion participation levels
 
-
 ## 7. PREVIOUS CHATS (SUMMARIZED)
 Historical conversation context.
 

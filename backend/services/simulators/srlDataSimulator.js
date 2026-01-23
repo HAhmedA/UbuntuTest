@@ -13,7 +13,7 @@ import logger from '../utils/logger.js';
 import {
     computeAnnotations,
     CONCEPT_SHORT_NAMES
-} from './annotationService.js';
+} from '../annotators/srlAnnotationService.js';
 
 // =============================================================================
 // PROFILE-BASED SRL PATTERNS

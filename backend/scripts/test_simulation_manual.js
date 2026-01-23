@@ -1,6 +1,6 @@
 // Verification script for SRL + Sleep Simulator Orchestration
-import pool from './config/database.js';
-import { generateStudentData } from './services/simulationOrchestratorService.js';
+import pool from '../config/database.js';
+import { generateStudentData } from '../services/simulationOrchestratorService.js';
 import { randomUUID } from 'crypto';
 
 async function runTest() {

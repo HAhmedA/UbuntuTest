@@ -11,13 +11,13 @@ const INVERTED_CONCEPTS = ['anxiety'];
 // Short display names for UI (concept_key -> short name)
 const CONCEPT_SHORT_NAMES = {
     efficiency: 'Efficiency',
-    importance: 'Importance',
-    tracking: 'Tracking',
-    clarity: 'Clarity',
+    importance: 'Perceived Importance',
+    tracking: 'Progress Tracking',
+    clarity: 'Task Clarity',
     effort: 'Effort',
     focus: 'Focus',
     help_seeking: 'Help Seeking',
-    community: 'Community',
+    community: 'Peer Learning',
     timeliness: 'Timeliness',
     motivation: 'Motivation',
     anxiety: 'Anxiety',
@@ -141,39 +141,105 @@ function calculateTrend(scores, isInverted = false) {
 }
 
 /**
+ * Generate a complex/nuanced description combining Trend and Latest vs Comparison
+ * 
+ * @param {string} trend - 'improving', 'declining', 'fluctuating', 'stable_high', etc.
+ * @param {number|null} latestScore - Most recent score
+ * @param {number|null} previousAvg - Average of previous scores (excluding latest)
+ * @param {boolean} isInverted - True if high score is bad (e.g. anxiety)
+ */
+function generateComplexDescription(trend, latestScore, previousAvg, isInverted) {
+    // Fallback if we don't have comparative data
+    const trendDescriptions = isInverted ? TREND_DESCRIPTIONS_INVERTED : TREND_DESCRIPTIONS;
+    const baseTrendText = trendDescriptions[trend] || trend;
+
+    if (latestScore === null || previousAvg === null) {
+        return `Your responses have been ${baseTrendText}.`;
+    }
+
+    const diff = latestScore - previousAvg;
+    const threshold = 0.5; // Significance threshold
+
+    // Determine direction of today's score vs average
+    let direction = "consistent";
+    if (diff > threshold) direction = "higher";
+    if (diff < -threshold) direction = "lower";
+
+    // Helper to determine if a specific direction is "Good" or "Bad" for this concept
+    const isHigherGood = !isInverted;
+    const isDirectionGood = (direction === "higher" && isHigherGood) || (direction === "lower" && !isHigherGood);
+
+    // MATRIX LOGIC
+    // 1. IMPROVING TREND
+    if (trend === 'improving') {
+        if (direction === "consistent") {
+            return `You are on an improving trend, with today's score consistent with that progress.`;
+        }
+        if (isDirectionGood) {
+            // Trend is improving AND today is even better
+            return `You are on an upward trend, and today is another strong day (${latestScore} vs avg ${previousAvg.toFixed(1)}).`;
+        } else {
+            // Trend is improving BUT today is worse (Complexity!)
+            return `You have been improving overall, despite a slight dip today (${latestScore} vs avg ${previousAvg.toFixed(1)}).`;
+        }
+    }
+
+    // 2. DECLINING TREND
+    if (trend === 'declining') {
+        if (direction === "consistent") {
+            return `You are seeing a declining trend, and today continues that pattern.`;
+        }
+        if (isDirectionGood) {
+            // Trend is declining BUT today is better (Complexity!)
+            return `You have been declining recently, but today shows a positive uptick (${latestScore} vs avg ${previousAvg.toFixed(1)}).`;
+        } else {
+            // Trend is declining AND today is even worse
+            return `You are on a downward trend, and today confirms that struggle (${latestScore} vs avg ${previousAvg.toFixed(1)}).`;
+        }
+    }
+
+    // 3. FLUCTUATING TREND
+    if (trend === 'fluctuating') {
+        if (direction === "consistent") return `Your responses have been fluctuating, though today is near your average.`;
+        const dirText = direction === "higher" ? "higher" : "lower";
+        return `Your responses have been fluctuating, and today is ${dirText} than usual (${latestScore} vs ${previousAvg.toFixed(1)}).`;
+    }
+
+    // 4. STABLE TRENDS
+    if (trend.startsWith('stable')) {
+        if (direction === "consistent") {
+            return `Your responses have been ${baseTrendText}, and today matches your average.`;
+        }
+        // Stable but today is an outlier
+        const dirText = direction === "higher" ? "higher" : "lower";
+        return `Normally ${baseTrendText}, but today is ${dirText} than your average (${latestScore} vs ${previousAvg.toFixed(1)}).`;
+    }
+
+    // Default fallback
+    return `Your responses have been ${baseTrendText}.`;
+}
+
+/**
  * Generate annotation text for UI display (short concept name)
  */
-function generateAnnotationText(conceptKey, trend, avg, timeWindow, isInverted) {
+function generateAnnotationText(conceptKey, trend, avg, timeWindow, isInverted, latestScore = null, previousAvg = null) {
     const shortName = CONCEPT_SHORT_NAMES[conceptKey] || conceptKey;
-    const period = 'over the past 7 days';
-    const trendDescriptions = isInverted ? TREND_DESCRIPTIONS_INVERTED : TREND_DESCRIPTIONS;
-    const trendText = trendDescriptions[trend] || trend;
-
-    return `Your ${shortName} has been ${trendText} ${period}, with an average of ${avg.toFixed(1)} out of 5.`;
+    const desc = generateComplexDescription(trend, latestScore, previousAvg, isInverted);
+    return desc;
 }
 
 /**
  * Generate annotation text for LLM/chatbot (full question title)
- * Handles different scenarios based on data sufficiency:
+ * Handles different scenarios based on data sufficiency and comparison:
  * - Single response: Just show current value
  * - Multiple responses but insufficient for trend: Show average without trend
- * - Sufficient data: Full trend analysis
- * 
- * @param {string} conceptKey - Concept key
- * @param {string} fullTitle - Full question title
- * @param {string} trend - Calculated trend
- * @param {number} avg - Average score
- * @param {number} min - Minimum score
- * @param {number} max - Maximum score
- * @param {number} count - Response count
- * @param {string} timeWindow - '24h' or '7d'
- * @param {boolean} isInverted - Whether the concept is inverted
- * @param {boolean} hasSufficientData - Whether there's enough data for trend analysis
- * @param {number} distinctDayCount - Number of distinct days (for 7d window)
+ * - Sufficient data: Full trend analysis + Latest vs Previous comparison
  */
-function generateAnnotationTextLLM(conceptKey, fullTitle, trend, avg, min, max, count, timeWindow, isInverted, hasSufficientData = false, distinctDayCount = null) {
+function generateAnnotationTextLLM(conceptKey, fullTitle, trend, avg, min, max, count, timeWindow, isInverted, hasSufficientData = false, distinctDayCount = null, latestScore = null, previousAvg = null) {
     // Clean up the full title (remove trailing colon if present)
-    const cleanTitle = fullTitle.replace(/:$/, '');
+    // Use short name if available to save tokens
+    const displayTitle = CONCEPT_SHORT_NAMES[conceptKey] || fullTitle;
+    const cleanTitle = displayTitle.replace(/:$/, '');
 
     // Single response - just show the current value
     if (count === 1) {
@@ -188,22 +254,16 @@ function generateAnnotationTextLLM(conceptKey, fullTitle, trend, avg, min, max, 
             `(More data needed for trend analysis)`;
     }
 
-    // Sufficient data - full trend description
-    const period = 'over the past 7 days';
-    const trendDescriptions = isInverted ? TREND_DESCRIPTIONS_INVERTED : TREND_DESCRIPTIONS;
-    const trendText = trendDescriptions[trend] || trend;
+    // Sufficient data - Use Nuanced Description
+    const complexDesc = generateComplexDescription(trend, latestScore, previousAvg, isInverted);
 
-    return `Regarding "${cleanTitle}": The student's responses have been ${trendText} ${period}. ` +
-        `Statistics: average ${avg.toFixed(1)}, min ${min}, max ${max} (based on ${count} responses).`;
+    return `Regarding "${cleanTitle}": ${complexDesc} ` +
+        `Statistics: overall average ${avg.toFixed(1)}, min ${min}, max ${max} (based on ${count} responses over 7 days).`;
 }
 
 /**
  * Compute all annotations for a user
  * Called after each questionnaire submission
- * 
- * @param {object} pool - Database connection pool
- * @param {string} userId - User ID
- * @param {object} surveyStructure - Survey JSON structure with element titles
  */
 async function computeAnnotations(pool, userId, surveyStructure) {
     // Extract concept info from survey structure
@@ -267,6 +327,7 @@ async function computeAnnotations(pool, userId, surveyStructure) {
             const hasSufficientData = conceptDistinctDayCount >= MIN_DISTINCT_DAYS_7D;
 
             let avg = 0, min = 0, max = 0, count = 0, trend = 'stable_avg';
+            let latestScore = null, previousAvg = null;
 
             if (scores.length > 0) {
                 avg = average(scores);
@@ -274,12 +335,24 @@ async function computeAnnotations(pool, userId, surveyStructure) {
                 max = Math.max(...scores);
                 count = scores.length;
                 trend = calculateTrend(scores, isInverted);
+
+                // LATEST vs BASELINE Calculation
+                latestScore = scores[scores.length - 1]; // Last element is latest (sorted ASC)
+
+                if (scores.length > 1) {
+                    const previousScores = scores.slice(0, scores.length - 1);
+                    previousAvg = average(previousScores);
+                } else {
+                    // Only 1 score exist, so previous avg is undefined/null
+                    previousAvg = null;
+                }
             }
 
-            const annotationText = generateAnnotationText(conceptKey, trend, avg, timeWindow, isInverted);
+            const annotationText = generateAnnotationText(conceptKey, trend, avg, timeWindow, isInverted, latestScore, previousAvg);
             const annotationTextLLM = generateAnnotationTextLLM(
                 conceptKey, info.title, trend, avg, min, max, count, timeWindow, isInverted,
-                hasSufficientData, timeWindow === '7d' ? conceptDistinctDayCount : null
+                hasSufficientData, timeWindow === '7d' ? conceptDistinctDayCount : null,
+                latestScore, previousAvg
             );
 
             annotations.push({

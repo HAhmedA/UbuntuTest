@@ -9,7 +9,7 @@
 // - Day-to-day carry-over (bad night can influence next night)
 
 import logger from '../utils/logger.js';
-import { computeJudgments, recomputeBaseline } from './sleepJudgmentService.js';
+import { computeJudgments, recomputeBaseline } from '../annotators/sleepAnnotationService.js';
 
 // =============================================================================
 // PROFILE-BASED SLEEP PATTERNS

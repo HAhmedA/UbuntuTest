@@ -2,7 +2,7 @@
 import { Router } from 'express'
 import pool from '../config/database.js'
 import logger from '../utils/logger.js'
-import { getAnnotations, getAnnotationsForChatbot } from '../services/annotationService.js'
+import { getAnnotations, getAnnotationsForChatbot } from '../services/annotators/srlAnnotationService.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()

@@ -8,7 +8,7 @@ import { chatCompletionWithRetry, checkAvailability } from './apiConnectorServic
 import { assemblePrompt, assembleInitialGreetingPrompt, getSystemInstructionsForAlignment, hasStudentProfile } from './promptAssemblerService.js'
 import { getAlignedResponse, quickValidation, SERVICE_UNAVAILABLE_MESSAGE, ALIGNMENT_FAILED_MESSAGE } from './alignmentService.js'
 import { invalidateSummary } from './summarizationService.js'
-import { hasSRLData } from './annotationService.js'
+import { hasSRLData } from './annotators/srlAnnotationService.js'
 import {
     GREETING_NO_DATA_WITH_PROFILE,
     GREETING_NO_DATA_NO_PROFILE,

@@ -3,11 +3,13 @@
 // Ensures student profile consistency across all data sources
 
 import logger from '../utils/logger.js';
-import { generateSleepData } from './sleepDataSimulator.js';
-import { generateSRLData } from './srlDataSimulator.js';
-import { generateScreenTimeData } from './screenTimeDataSimulator.js';
-import { generateSocialMediaData } from './socialMediaDataSimulator.js';
-import { generateLMSData } from './lmsDataSimulator.js';
+import {
+    generateSleepData,
+    generateSRLData,
+    generateScreenTimeData,
+    generateSocialMediaData,
+    generateLMSData
+} from './simulators/index.js';
 
 // =============================================================================
 // PROFILE MANAGEMENT
