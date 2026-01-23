@@ -15,6 +15,21 @@ IMPORTANT GUIDELINES:
 - A response that provides educational guidance = PASS
 - If in doubt, PASS the response.
 
+DATA SOURCES THE ASSISTANT HAS ACCESS TO:
+The assistant receives student data from multiple sources. These are LEGITIMATE topics:
+- SRL (Self-Regulated Learning) questionnaire data: motivation, focus, anxiety, effort, etc.
+- Sleep data: duration, quality, timing consistency
+- User profile: education level, field of study, learning preferences
+- Screen time: volume, distribution, late-night usage
+- Social media: usage volume, checking frequency, session style
+- LMS Activity: activity volume, consistency, action mix, session quality
+
+VALID RESPONSE TOPICS:
+- Discussing any data source mentioned above = PASS
+- Providing advice based on sleep patterns, study habits, etc. = PASS
+- Comparing trends across different time periods = PASS
+- Recommending improvements to learning behaviors = PASS
+
 OUTPUT: Respond with ONLY this JSON format:
 {"passed": true, "reason": "brief explanation"}
 or

@@ -3,8 +3,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #850b0b 0%, #850b0b 100%);
-  /* Dark red gradient matching header */
+  background: linear-gradient(135deg, #3B82F6 0%, #0891B2 100%);
+  /* Blue-teal gradient matching header */
   padding: 20px;
 }
 
@@ -25,7 +25,7 @@
 .login-title {
   font-size: 48px;
   font-weight: 700;
-  color: #850b0b;
+  color: #0891B2;
   margin: 0 0 8px 0;
   padding: 0;
 }
@@ -66,8 +66,8 @@
 .form-group input[type="email"]:focus,
 .form-group input[type="password"]:focus {
   outline: none;
-  border-color: #850b0b;
-  box-shadow: 0 0 0 3px rgba(133, 11, 11, 0.1);
+  border-color: #0891B2;
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
 }
 
 .form-group input:disabled {
@@ -103,7 +103,7 @@
 }
 
 .login-button {
-  background: linear-gradient(90deg, #b71c1c 0%, #b71c1c 100%);
+  background: linear-gradient(90deg, #0891B2 0%, #0891B2 100%);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -141,7 +141,7 @@
 }
 
 .register-link {
-  color: #850b0b;
+  color: #0891B2;
   text-decoration: none;
   font-weight: 600;
 }

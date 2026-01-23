@@ -18,10 +18,8 @@ const Home = () => {
     const isAdmin = user?.role === 'admin' || user?.email === 'admin@example.com'
     const title = isAdmin ? 'My Surveys' : 'Available Surveys'
 
-    const [annotations24h, setAnnotations24h] = useState<Annotation[]>([])
     const [annotations7d, setAnnotations7d] = useState<Annotation[]>([])
     const [loading, setLoading] = useState(false)
-    const [hasSufficientData24h, setHasSufficientData24h] = useState(false)
     const [hasSufficientData7d, setHasSufficientData7d] = useState(false)
 
     // Load surveys if not already loaded
@@ -42,14 +40,11 @@ const Home = () => {
                         const allAnnotations = result.payload.annotations || []
 
                         // Split by time window
-                        const today = allAnnotations.filter((a: Annotation) => a.timeWindow === '24h')
                         const week = allAnnotations.filter((a: Annotation) => a.timeWindow === '7d')
 
-                        setAnnotations24h(today)
                         setAnnotations7d(week)
 
                         // Check if any annotation has sufficient data
-                        setHasSufficientData24h(today.some((a: Annotation) => a.hasSufficientData))
                         setHasSufficientData7d(week.some((a: Annotation) => a.hasSufficientData))
                     }
                     setLoading(false)
@@ -78,7 +73,7 @@ const Home = () => {
     // Get first survey for "Fill Survey" button
     const firstSurvey = surveys.length > 0 ? surveys[0] : null
 
-    const handleCardClick = (period: 'today' | '7days') => {
+    const handleCardClick = (period: '7days') => {
         if (firstSurvey) {
             navigate(`/mood-history/${firstSurvey.id}?period=${period}`)
         }
@@ -222,7 +217,7 @@ const Home = () => {
     }
 
     // Calculate total responses for display
-    const totalResponses24h = annotations24h.length > 0 ? annotations24h[0].responseCount : 0
+
     const totalResponses7d = annotations7d.length > 0 ? annotations7d[0].responseCount : 0
     // Get distinct day count for 7-day period
     const distinctDayCount7d = annotations7d.length > 0 ? annotations7d[0].distinctDayCount : 0
@@ -243,36 +238,25 @@ const Home = () => {
     return (
         <div className='mood-home-wrapper'>
             <div className='mood-home-container'>
-                <div className='mood-home-header'>
-                    {firstSurvey && (
-                        <Link to={`/run/${firstSurvey.id}`} className='fill-survey-button'>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2.5 5H17.5M2.5 10H17.5M2.5 15H17.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                            </svg>
-                            <span>Fill Survey</span>
-                        </Link>
-                    )}
-                    <h1 className='mood-title'>Overview</h1>
+                {/* Welcome Card */}
+                <div className='welcome-card'>
+                    <div className='welcome-card-content'>
+                        <h2 className='welcome-card-title'>Welcome, {user?.name || 'Student'}!</h2>
+                        <p className='welcome-card-description'>Update your status and answer a new surveys</p>
+                        {firstSurvey && (
+                            <Link to={`/run/${firstSurvey.id}`} className='fill-survey-button'>
+                                Fill Survey
+                            </Link>
+                        )}
+                    </div>
+                    <img
+                        src="/assets/student-illustration.png"
+                        alt="Student with checklist"
+                        className='welcome-card-illustration'
+                    />
                 </div>
 
                 <div className='mood-cards-container'>
-                    <div
-                        className='mood-card mood-card-clickable'
-                        onClick={() => handleCardClick('today')}
-                    >
-                        <h2 className='mood-card-title'>Mood today</h2>
-                        <p className='mood-card-description'>
-                            Your mood statistics for today{totalResponses24h > 0 ? `, based on ${totalResponses24h} ${totalResponses24h === 1 ? 'response' : 'responses'}` : ''}
-                        </p>
-                        <div className='mood-card-content'>
-                            {loading ? (
-                                <div className='mood-loading'>Loading...</div>
-                            ) : (
-                                renderAnnotations(annotations24h)
-                            )}
-                        </div>
-                    </div>
-
                     <div
                         className='mood-card mood-card-clickable'
                         onClick={() => handleCardClick('7days')}

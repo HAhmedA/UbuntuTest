@@ -2,6 +2,7 @@
 import bcrypt from 'bcrypt'
 import pool from '../config/database.js'
 import logger from '../utils/logger.js'
+import { generateStudentData } from '../services/simulationOrchestratorService.js'
 
 export const login = async (req, res) => {
     try {
@@ -51,6 +52,17 @@ export const register = async (req, res) => {
         const user = insert.rows[0]
         req.session.user = user
         logger.info(`User registered: ${email}`)
+
+        // Generate simulated data (Sleep + SRL) via Orchestrator
+        // Using await to ensure data is ready before redirecting to Home
+        try {
+            await generateStudentData(pool, user.id)
+            logger.info(`Simulation data generated for user ${user.id}`)
+        } catch (simErr) {
+            // Log but don't fail registration if simulation fails
+            logger.error(`Failed to generate simulation data for user ${user.id}: ${simErr.message}`)
+        }
+
         res.status(201).json(user)
     } catch (e) {
         logger.error(`Registration error: ${e.message}`)

@@ -21,6 +21,45 @@
   margin: 0 auto;
 }
 
+/* Welcome Card with illustration */
+.welcome-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 16px;
+  padding: 32px 40px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  gap: 48px;
+}
+
+.welcome-card-content {
+  flex: 0 1 auto;
+  text-align: center;
+}
+
+.welcome-card-title {
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.welcome-card-description {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  color: #6B7280;
+  line-height: 1.5;
+}
+
+.welcome-card-illustration {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .mood-home-header {
   display: flex;
   align-items: center;
@@ -30,24 +69,25 @@
 }
 
 .fill-survey-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
-  background: #b71c1c;
+  padding: 12px 48px;
+  background: #0891B2;
   color: #ffffff;
   text-decoration: none;
   border-radius: 8px;
   font-weight: 600;
   font-size: 16px;
   transition: background-color 0.2s, transform 0.1s;
-  box-shadow: 0 2px 4px rgba(183, 28, 28, 0.2);
+  box-shadow: 0 2px 4px rgba(8, 145, 178, 0.2);
 }
 
 .fill-survey-button:hover {
-  background: #c62828;
+  background: #06B6D4;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(183, 28, 28, 0.3);
+  box-shadow: 0 4px 8px rgba(8, 145, 178, 0.3);
 }
 
 .fill-survey-button:active {
@@ -211,6 +251,22 @@
 }
 
 @media (max-width: 768px) {
+  .welcome-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .welcome-card-illustration {
+    width: 120px;
+    height: 120px;
+    order: -1;
+  }
+
+  .welcome-card-title {
+    font-size: 24px;
+  }
+
   .mood-home-header {
     flex-direction: column;
     align-items: flex-start;

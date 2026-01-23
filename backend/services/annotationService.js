@@ -2,7 +2,7 @@
 // Computes statistics, trends, and generates annotation text for each SRL concept
 
 // Minimum responses required to show trends
-const MIN_RESPONSES_24H = 3;  // At least 3 responses for 24h
+
 const MIN_DISTINCT_DAYS_7D = 3;  // At least 3 different days for 7d
 
 // Concepts that are inverted (high score = bad outcome)
@@ -145,7 +145,7 @@ function calculateTrend(scores, isInverted = false) {
  */
 function generateAnnotationText(conceptKey, trend, avg, timeWindow, isInverted) {
     const shortName = CONCEPT_SHORT_NAMES[conceptKey] || conceptKey;
-    const period = timeWindow === '24h' ? 'today' : 'over the past 7 days';
+    const period = 'over the past 7 days';
     const trendDescriptions = isInverted ? TREND_DESCRIPTIONS_INVERTED : TREND_DESCRIPTIONS;
     const trendText = trendDescriptions[trend] || trend;
 
@@ -182,14 +182,14 @@ function generateAnnotationTextLLM(conceptKey, fullTitle, trend, avg, min, max, 
 
     // Multiple responses but insufficient data for trend analysis
     if (!hasSufficientData) {
-        const period = timeWindow === '24h' ? 'today' : 'recently';
+        const period = 'recently';
         return `Regarding "${cleanTitle}": The student has responded ${count} times ${period}, ` +
             `averaging ${avg.toFixed(1)} out of 5 (range: ${min}-${max}). ` +
             `(More data needed for trend analysis)`;
     }
 
     // Sufficient data - full trend description
-    const period = timeWindow === '24h' ? 'in the last 24 hours' : 'over the past 7 days';
+    const period = 'over the past 7 days';
     const trendDescriptions = isInverted ? TREND_DESCRIPTIONS_INVERTED : TREND_DESCRIPTIONS;
     const trendText = trendDescriptions[trend] || trend;
 
@@ -224,11 +224,11 @@ async function computeAnnotations(pool, userId, surveyStructure) {
         });
     }
 
-    const timeWindows = ['24h', '7d'];
+    const timeWindows = ['7d'];
     const annotations = [];
 
     for (const timeWindow of timeWindows) {
-        const interval = timeWindow === '24h' ? '24 hours' : '7 days';
+        const interval = '7 days';
 
         // Get all responses for this user in the time window
         const { rows: responses } = await pool.query(
@@ -264,9 +264,7 @@ async function computeAnnotations(pool, userId, surveyStructure) {
             // Per-concept threshold check
             const conceptResponseCount = scores.length;
             const conceptDistinctDayCount = distinctDates.size;
-            const hasSufficientData = timeWindow === '24h'
-                ? conceptResponseCount >= MIN_RESPONSES_24H
-                : conceptDistinctDayCount >= MIN_DISTINCT_DAYS_7D;
+            const hasSufficientData = conceptDistinctDayCount >= MIN_DISTINCT_DAYS_7D;
 
             let avg = 0, min = 0, max = 0, count = 0, trend = 'stable_avg';
 
@@ -420,7 +418,7 @@ async function getAnnotationsForChatbot(pool, userId) {
     }
 
     // Group by time window
-    const by24h = validAnnotations.filter(a => a.timeWindow === '24h');
+    // Group by time window
     const by7d = validAnnotations.filter(a => a.timeWindow === '7d');
 
     // Check if 7-day data has responses from multiple days
@@ -429,16 +427,8 @@ async function getAnnotationsForChatbot(pool, userId) {
 
     let result = '## Student Self-Regulated Learning Status\n\n';
 
-    if (by24h.length > 0) {
-        result += '### Last 24 Hours:\n';
-        by24h.forEach(a => {
-            result += `- ${a.text}\n`;
-        });
-        result += '\n';
-    }
-
     // Only show 7-day section if there's data from multiple distinct days
-    if (by7d.length > 0 && has7dMultipleDays) {
+    if (by7d.length > 0) {
         result += '### Past 7 Days:\n';
         by7d.forEach(a => {
             result += `- ${a.text}\n`;

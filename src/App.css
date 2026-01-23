@@ -13,8 +13,8 @@ body {
 
 
 .sjs-app__header {
-  background: linear-gradient(90deg, #850b0b 0%, #850b0b 100%);
-  box-shadow: 0 2px 8px rgba(133, 11, 11, 0.15);
+  background: linear-gradient(90deg, #3B82F6 0%, #0891B2 100%);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
   padding: 0;
   position: sticky;
   top: 0;
@@ -63,21 +63,21 @@ body {
 }
 
 .sjs-nav-button-gold {
-  background: #ffd700 !important;
-  color: #871807 !important;
+  background: #06B6D4 !important;
+  color: #ffffff !important;
   padding: 1px 16px !important;
   border-radius: 4px;
 }
 
 .sjs-nav-button-gold:hover,
 .sjs-nav-button-gold.active {
-  background: #ffed4e !important;
-  color: #871807 !important;
+  background: #22D3EE !important;
+  color: #ffffff !important;
   text-decoration: none;
 }
 
 .sjs-nav-button-gold span {
-  color: #871807 !important;
+  color: #ffffff !important;
 }
 
 .sjs-nav-button-grouped {
@@ -95,7 +95,7 @@ body {
   width: 100%;
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 2px 16px rgba(30, 143, 255, 0.06);
+  box-shadow: 0 2px 16px rgba(8, 145, 178, 0.08);
   padding: 32px 24px 40px 24px;
   min-height: 500px;
 }

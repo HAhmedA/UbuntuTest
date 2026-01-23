@@ -27,7 +27,7 @@ export interface MoodData {
 
 export const loadStudentMood = createAsyncThunk(
   'results/loadStudentMood',
-  async ({ surveyId, period }: { surveyId: string; period: 'today' | '7days' }) => {
+  async ({ surveyId, period }: { surveyId: string; period: '7days' }) => {
     const response = await axios.get(apiBaseAddress + `/student/mood?surveyId=${surveyId}&period=${period}`)
     return response.data as MoodData
   }
@@ -59,7 +59,7 @@ export const loadStudentMoodHistory = createAsyncThunk(
 // Annotation types for SRL analysis
 export interface Annotation {
   conceptKey: string
-  timeWindow: '24h' | '7d'
+  timeWindow: '7d'
   avgScore: number
   minScore: number
   maxScore: number
@@ -78,7 +78,7 @@ export interface AnnotationsResponse {
 
 export const loadAnnotations = createAsyncThunk(
   'results/loadAnnotations',
-  async (timeWindow?: '24h' | '7d') => {
+  async (timeWindow?: '7d') => {
     const url = timeWindow
       ? `${apiBaseAddress}/annotations?timeWindow=${timeWindow}`
       : `${apiBaseAddress}/annotations`

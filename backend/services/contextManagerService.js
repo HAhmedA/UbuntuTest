@@ -137,20 +137,93 @@ async function getUserSessions(userId, limit = 10) {
 }
 
 /**
+ * Get all user messages for a session to filter suggested prompts
+ * 
+ * @param {string} sessionId - Session ID
+ * @returns {Promise<string[]>}
+ */
+async function getSessionUserMessages(sessionId) {
+    const { rows } = await pool.query(
+        `SELECT content FROM public.chat_messages 
+         WHERE session_id = $1 AND role = 'user'`,
+        [sessionId]
+    )
+    return rows.map(r => r.content)
+}
+
+/**
+ * Parse follow-up suggestions embedded in LLM response via XML tags
+ * Also returns the cleaned response without the XML tags
+ * 
+ * @param {string} response - The raw LLM response
+ * @returns {{cleanedResponse: string, suggestions: string[]}}
+ */
+function parseFollowUpSuggestions(response) {
+    const defaultSuggestions = []
+
+    // Match the <followups>...</followups> block
+    const followupsMatch = response.match(/<followups>[\s\S]*?<\/followups>/i)
+
+    if (!followupsMatch) {
+        return { cleanedResponse: response.trim(), suggestions: defaultSuggestions }
+    }
+
+    // Extract individual suggestions
+    const suggestionsBlock = followupsMatch[0]
+    const suggestionMatches = suggestionsBlock.match(/<suggestion>([^<]+)<\/suggestion>/gi)
+
+    const suggestions = []
+    if (suggestionMatches) {
+        for (const match of suggestionMatches) {
+            const content = match.replace(/<\/?suggestion>/gi, '').trim()
+            if (content && content.length > 3 && content.length <= 60) {
+                suggestions.push(content)
+            }
+        }
+    }
+
+    // Remove the followups block from the response
+    const cleanedResponse = response.replace(/<followups>[\s\S]*?<\/followups>/i, '').trim()
+
+    return { cleanedResponse, suggestions }
+}
+
+/**
  * Generate contextual follow-up prompt suggestions based on the conversation
  * Creates diverse, specific prompts that directly reflect the chatbot's response
  * 
  * @param {string} assistantResponse - The assistant's response to base suggestions on
  * @param {string} userMessage - The original user message for context
+ * @param {string} sessionId - Current Session ID (to filter used prompts)
  * @returns {Promise<string[]>} - Array of 3-4 suggested follow-up prompts
  */
-async function generateFollowUpPrompts(assistantResponse, userMessage) {
+async function generateFollowUpPrompts(assistantResponse, userMessage, sessionId = null) {
     const defaultPrompts = [
         "What are the best studying strategies based on my profile?",
         "Analyze my SRL data",
         "What are my learning trends?",
         "How can I improve based on my history?"
     ]
+
+    // Fetch used messages to filter them out
+    let usedMessages = []
+    if (sessionId) {
+        try {
+            usedMessages = await getSessionUserMessages(sessionId)
+        } catch (err) {
+            logger.warn(`Failed to fetch session messages for prompt filtering: ${err.message}`)
+        }
+    }
+
+    // Normalize for comparison
+    const normalize = (text) => text.toLowerCase().replace(/[^\w\s]/g, '').trim()
+    const usedSet = new Set(usedMessages.map(normalize))
+
+    const filterPrompts = (prompts) => {
+        return prompts.filter(p => !usedSet.has(normalize(p)))
+    }
+
+    const filteredDefaults = filterPrompts(defaultPrompts)
 
     try {
         const messages = [
@@ -209,7 +282,7 @@ Generate 4 specific follow-up questions based on the topics in this response:`
                 }
             } else {
                 logger.warn(`No JSON array found in prompt response`)
-                return defaultPrompts
+                return filteredDefaults
             }
         }
 
@@ -218,20 +291,22 @@ Generate 4 specific follow-up questions based on the topics in this response:`
             const validPrompts = parsed
                 .filter(p => typeof p === 'string' && p.length > 3 && p.length <= 75) // Relaxed length slightly
                 .filter(p => !p.toLowerCase().includes('tell me more'))
-                .slice(0, 4)
 
-            logger.info(`Generated ${validPrompts.length} valid prompts`)
+            // Filter out prompts that have already been used
+            const uniquePrompts = filterPrompts(validPrompts).slice(0, 4)
 
-            if (validPrompts.length >= 3) {
-                return validPrompts
+            logger.info(`Generated ${uniquePrompts.length} valid unique prompts`)
+
+            if (uniquePrompts.length >= 3) {
+                return uniquePrompts
             }
         }
 
         logger.warn('Generated prompts not in expected format, using defaults', { parsed })
-        return defaultPrompts
+        return filteredDefaults
     } catch (error) {
         logger.warn('Failed to generate follow-up prompts:', error.message)
-        return defaultPrompts
+        return filteredDefaults
     }
 }
 
@@ -285,7 +360,11 @@ async function sendMessage(userId, userMessage) {
             result.passed = false
         }
 
-        // Save assistant response
+        // Parse embedded follow-up suggestions from the response
+        const { cleanedResponse, suggestions: embeddedSuggestions } = parseFollowUpSuggestions(result.content)
+        result.content = cleanedResponse // Use cleaned response without XML tags
+
+        // Save assistant response (cleaned, without XML tags)
         await saveMessage(sessionId, userId, 'assistant', result.content, {
             passed: result.passed,
             retries: result.retries
@@ -297,8 +376,24 @@ async function sendMessage(userId, userMessage) {
             [sessionId]
         )
 
-        // Generate dynamic follow-up prompts (non-blocking, with fallback)
-        const suggestedPrompts = await generateFollowUpPrompts(result.content, userMessage)
+        // Use embedded suggestions if available, otherwise fall back to generated ones
+        let suggestedPrompts
+        if (embeddedSuggestions.length >= 3) {
+            // Filter out any prompts the user has already used
+            let usedMessages = []
+            try {
+                usedMessages = await getSessionUserMessages(sessionId)
+            } catch (err) {
+                logger.warn(`Failed to fetch session messages for filtering: ${err.message}`)
+            }
+            const normalize = (text) => text.toLowerCase().replace(/[^\w\s]/g, '').trim()
+            const usedSet = new Set(usedMessages.map(normalize))
+            suggestedPrompts = embeddedSuggestions.filter(p => !usedSet.has(normalize(p))).slice(0, 4)
+            logger.info(`Using ${suggestedPrompts.length} embedded suggestions from LLM response`)
+        } else {
+            // Fallback to separate generation
+            suggestedPrompts = await generateFollowUpPrompts(result.content, userMessage, sessionId)
+        }
 
         return {
             success: true,
@@ -389,7 +484,7 @@ async function generateInitialGreeting(userId) {
             logger.info(`User ${userId} has no SRL data - returned hardcoded greeting`)
 
             // Generate dynamic follow-up prompts for hardcoded greeting too
-            const suggestedPrompts = await generateFollowUpPrompts(noDataGreeting, 'Hello, I just started a new session')
+            const suggestedPrompts = await generateFollowUpPrompts(noDataGreeting, 'Hello, I just started a new session', sessionId)
 
             return {
                 success: true,
@@ -424,10 +519,12 @@ async function generateInitialGreeting(userId) {
             systemInstructions
         )
 
-        const greeting = result.content
-        logger.chat(`LLM greeting received`, { userId, greetingLength: greeting.length, passed: result.passed })
+        // Parse embedded follow-up suggestions from the greeting
+        const { cleanedResponse: cleanedGreeting, suggestions: embeddedSuggestions } = parseFollowUpSuggestions(result.content)
+        const greeting = cleanedGreeting
+        logger.chat(`LLM greeting received`, { userId, greetingLength: greeting.length, passed: result.passed, embeddedSuggestions: embeddedSuggestions.length })
 
-        // Cache the greeting
+        // Cache the cleaned greeting
         await pool.query(
             `UPDATE public.chat_sessions SET initial_greeting = $1 WHERE id = $2`,
             [greeting, sessionId]
@@ -439,8 +536,14 @@ async function generateInitialGreeting(userId) {
             retries: result.retries
         })
 
-        // Generate dynamic follow-up prompts based on the greeting
-        const suggestedPrompts = await generateFollowUpPrompts(greeting, 'Hello, I just started a new session')
+        // Use embedded suggestions if available, otherwise fall back to generated ones
+        let suggestedPrompts
+        if (embeddedSuggestions.length >= 3) {
+            suggestedPrompts = embeddedSuggestions.slice(0, 4)
+            logger.info(`Using ${suggestedPrompts.length} embedded suggestions from greeting`)
+        } else {
+            suggestedPrompts = await generateFollowUpPrompts(greeting, 'Hello, I just started a new session', sessionId)
+        }
 
         return {
             success: true,

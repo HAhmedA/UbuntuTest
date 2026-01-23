@@ -1,12 +1,18 @@
 :root {
-  /* SurveyJS theme colors */
-  --sjs-primary-color: #850b0b;
-  --sjs-primary-backcolor: #850b0b;
+  /* SurveyJS theme colors - Student-friendly blue-teal */
+  --sjs-primary-color: #0891B2;
+  --sjs-primary-backcolor: #0891B2;
   --sjs-primary-forecolor: #ffffff;
-  --sjs-border-color: #850b0b;
-  --sjs-shadow-small: 0 1px 2px rgba(133, 11, 11, 0.1);
-  --sjs-shadow-medium: 0 2px 4px rgba(133, 11, 11, 0.15);
-  --sjs-shadow-large: 0 4px 8px rgba(133, 11, 11, 0.2);
+  --sjs-border-color: #0891B2;
+  --sjs-shadow-small: 0 1px 2px rgba(8, 145, 178, 0.1);
+  --sjs-shadow-medium: 0 2px 4px rgba(8, 145, 178, 0.15);
+  --sjs-shadow-large: 0 4px 8px rgba(8, 145, 178, 0.2);
+  
+  /* App-wide color palette */
+  --primary-blue: #3B82F6;
+  --primary-teal: #0891B2;
+  --accent-cyan: #06B6D4;
+  --primary-gradient: linear-gradient(90deg, #3B82F6 0%, #0891B2 100%);
 }
 
 body {

@@ -9,6 +9,10 @@ import pool from '../config/database.js'
 import logger from '../utils/logger.js'
 import { getAnnotationsForChatbot } from './annotationService.js'
 import { getSummariesForChatbot, hasHistory } from './summarizationService.js'
+import { getJudgmentsForChatbot as getSleepJudgmentsForChatbot } from './sleepJudgmentService.js'
+import { getJudgmentsForChatbot as getScreenTimeJudgmentsForChatbot } from './screenTimeJudgmentService.js'
+import { getJudgmentsForChatbot as getSocialMediaJudgmentsForChatbot } from './socialMediaJudgmentService.js'
+import { getJudgmentsForChatbot as getLMSJudgmentsForChatbot } from './lmsJudgmentService.js'
 import { estimateTokens } from './apiConnectorService.js'
 
 // Get directory path for ES modules
@@ -77,6 +81,7 @@ async function initializeSystemPrompt() {
 async function getSystemPrompt() {
     const { rows } = await pool.query(
         `SELECT prompt FROM public.system_prompts 
+         WHERE prompt_type = 'system'
          ORDER BY updated_at DESC LIMIT 1`
     )
     return rows.length > 0 ? rows[0].prompt : 'Be helpful and ethical.'
@@ -103,38 +108,41 @@ async function getUserContext(userId) {
 
     const profile = rows[0]
     const parts = []
+    const name = profile.name || 'the student'
 
-    if (profile.name) {
-        parts.push(`- Student name: ${profile.name}`)
+    let description = `This is a student named ${name}`
+
+    if (profile.major) {
+        description += `, majoring in ${profile.major}`
+    } else if (profile.field_of_study) {
+        description += `, studying ${profile.field_of_study}`
     }
 
     if (profile.edu_level) {
-        parts.push(`- Education level: ${profile.edu_level}`)
+        description += ` at the ${profile.edu_level} level`
     }
-    if (profile.field_of_study) {
-        parts.push(`- Field of study: ${profile.field_of_study}`)
-    }
-    if (profile.major) {
-        parts.push(`- Major: ${profile.major}`)
-    }
+
+    description += '.'
+
     if (profile.learning_formats && profile.learning_formats.length > 0) {
         const formats = Array.isArray(profile.learning_formats)
             ? profile.learning_formats
             : JSON.parse(profile.learning_formats)
         if (formats.length > 0) {
-            parts.push(`- Learning preferences: ${formats.join(', ')}`)
+            description += ` They prefer learning via: ${formats.join(', ')}.`
         }
     }
+
     if (profile.disabilities && profile.disabilities.length > 0) {
         const disabilities = Array.isArray(profile.disabilities)
             ? profile.disabilities
             : JSON.parse(profile.disabilities)
         if (disabilities.length > 0) {
-            parts.push(`- Accessibility considerations: ${disabilities.join(', ')}`)
+            description += ` Accessibility needs include: ${disabilities.join(', ')}.`
         }
     }
 
-    return parts.length > 0 ? parts.join('\n') : 'No specific preferences provided.'
+    return description
 }
 
 /**
@@ -169,10 +177,14 @@ async function assemblePrompt(userId, sessionId, userMessage = null) {
     logger.prompt(`Assembling prompt for user ${userId}, session ${sessionId}`)
 
     // Gather all data sources in parallel
-    const [systemPrompt, userContext, annotations, summaries] = await Promise.all([
+    const [systemPrompt, userContext, annotations, sleepJudgments, screenTimeJudgments, socialMediaJudgments, lmsJudgments, summaries] = await Promise.all([
         getSystemPrompt(),
         getUserContext(userId),
         getAnnotationsForChatbot(pool, userId),
+        getSleepJudgmentsForChatbot(pool, userId),
+        getScreenTimeJudgmentsForChatbot(pool, userId),
+        getSocialMediaJudgmentsForChatbot(pool, userId),
+        getLMSJudgmentsForChatbot(pool, userId),
         getSummariesForChatbot(userId)
     ])
 
@@ -183,6 +195,7 @@ async function assemblePrompt(userId, sessionId, userMessage = null) {
         userContextLength: userContext.length,
         annotationsLength: annotations.length,
         annotationsPreview: annotations.substring(0, 200),
+        sleepJudgmentsLength: sleepJudgments.length,
         summariesLength: summaries.length
     })
 
@@ -202,10 +215,14 @@ async function assemblePrompt(userId, sessionId, userMessage = null) {
     let currentTokens = estimateTokens(baseSystemPrompt)
     let assembledContext = baseSystemPrompt
 
-    // 2. Context Sections (Prioritized: User Context > Annotations > Summaries)
+    // 2. Context Sections (Prioritized: User Context > Annotations/Sleep/Screen/Social > Summaries)
     const contextSections = [
         { name: 'USER CONTEXT & PREFERENCES', content: userContext, priority: 1 },
         { name: 'ANNOTATED QUESTIONNAIRE INSIGHTS', content: annotations, priority: 2 },
+        { name: 'SLEEP ANALYSIS', content: sleepJudgments, priority: 2 },
+        { name: 'SCREEN TIME ANALYSIS', content: screenTimeJudgments, priority: 2 },
+        { name: 'SOCIAL MEDIA ANALYSIS', content: socialMediaJudgments, priority: 2 },
+        { name: 'LMS ACTIVITY ANALYSIS', content: lmsJudgments, priority: 2 },
         { name: 'PREVIOUS CHATS (SUMMARIZED)', content: summaries, priority: 3 },
         { name: 'CURRENT SESSION', content: userType, priority: 1 } // High priority for session type
     ]
@@ -298,10 +315,14 @@ async function assemblePrompt(userId, sessionId, userMessage = null) {
 async function assembleInitialGreetingPrompt(userId) {
     logger.prompt(`Assembling initial greeting prompt`, { userId })
 
-    const [systemPrompt, userContext, annotations, summaries] = await Promise.all([
+    const [systemPrompt, userContext, annotations, sleepJudgments, screenTimeJudgments, socialMediaJudgments, lmsJudgments, summaries] = await Promise.all([
         getSystemPrompt(),
         getUserContext(userId),
         getAnnotationsForChatbot(pool, userId),
+        getSleepJudgmentsForChatbot(pool, userId),
+        getScreenTimeJudgmentsForChatbot(pool, userId),
+        getSocialMediaJudgmentsForChatbot(pool, userId),
+        getLMSJudgmentsForChatbot(pool, userId),
         getSummariesForChatbot(userId)
     ])
 
@@ -316,6 +337,7 @@ async function assembleInitialGreetingPrompt(userId) {
         userContextPreview: userContext.substring(0, 150),
         annotationsLength: annotations.length,
         annotationsPreview: annotations.substring(0, 300),
+        sleepJudgmentsLength: sleepJudgments.length,
         summariesLength: summaries.length,
         hasNoData: annotations.includes('No questionnaire data')
     })
@@ -331,8 +353,20 @@ ${userContext}
 ANNOTATED QUESTIONNAIRE INSIGHTS:
 ${annotations}
 
+SLEEP ANALYSIS:
+${sleepJudgments}
+
 PREVIOUS CHATS (SUMMARIZED):
 ${summaries}
+
+SCREEN TIME ANALYSIS:
+${screenTimeJudgments}
+
+SOCIAL MEDIA ANALYSIS:
+${socialMediaJudgments}
+
+LMS ACTIVITY ANALYSIS:
+${lmsJudgments}
 
 CURRENT SESSION:
 This is a ${userType}. Generate a personalized greeting following the Greeting Rules.
@@ -340,7 +374,7 @@ This is a ${userType}. Generate a personalized greeting following the Greeting R
 
     return [
         { role: 'system', content: assembledSystem },
-        { role: 'user', content: 'Hello, I just opened the chat. Please greet me based on my data.' }
+        { role: 'user', content: "Hello, I just opened the chat. Please greet me and briefly summarize my data in bulletpoints. Please, provide few personalized recommendations that aligns with my charachteristics in bulletpoints." }
     ]
 }
 
@@ -360,9 +394,13 @@ async function getSystemInstructionsForAlignment(userId = null) {
     }
 
     // accurate context for the judge
-    const [userContext, annotations, summaries] = await Promise.all([
+    const [userContext, annotations, sleepJudgments, screenTimeJudgments, socialMediaJudgments, lmsJudgments, summaries] = await Promise.all([
         getUserContext(userId),
         getAnnotationsForChatbot(pool, userId),
+        getSleepJudgmentsForChatbot(pool, userId),
+        getScreenTimeJudgmentsForChatbot(pool, userId),
+        getSocialMediaJudgmentsForChatbot(pool, userId),
+        getLMSJudgmentsForChatbot(pool, userId),
         getSummariesForChatbot(userId)
     ])
 
@@ -375,6 +413,18 @@ ${userContext}
 
 ANNOTATED QUESTIONNAIRE INSIGHTS:
 ${annotations}
+
+SLEEP ANALYSIS:
+${sleepJudgments}
+
+SCREEN TIME ANALYSIS:
+${screenTimeJudgments}
+
+SOCIAL MEDIA ANALYSIS:
+${socialMediaJudgments}
+
+LMS ACTIVITY ANALYSIS:
+${lmsJudgments}
 
 PREVIOUS CHATS (SUMMARIZED):
 ${summaries}

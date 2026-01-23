@@ -6,8 +6,7 @@ import { loadStudentMoodHistory, MoodHistoryData, loadAnnotations, Annotation } 
 import './MoodHistory.css'
 
 // Map time window from URL period to annotation timeWindow
-const periodToTimeWindow = (period: string): '24h' | '7d' | undefined => {
-    if (period === 'today') return '24h'
+const periodToTimeWindow = (period: string): '7d' | undefined => {
     if (period === '7days') return '7d'
     return undefined
 }
@@ -122,13 +121,7 @@ const MoodHistory = () => {
 
     // Format data for display
     const formattedData = historyData.data.map(item => {
-        if (historyData.period === 'today' && item.time) {
-            // For today, use time as the x-axis label
-            return {
-                ...item,
-                xLabel: item.time
-            }
-        } else if (historyData.period === '7days' && (item as any).datetime) {
+        if (historyData.period === '7days' && (item as any).datetime) {
             // For 7 days, use datetime label (e.g., "Jan 8 09:30")
             return {
                 ...item,
@@ -158,7 +151,7 @@ const MoodHistory = () => {
                     ← Back
                 </button>
                 <h1 className='mood-history-title'>
-                    Mood History {historyData.period === 'today' ? '(Today)' : historyData.period === '7days' ? '(Last 7 Days)' : 'Over Time'}
+                    Mood History {historyData.period === '7days' ? '(Last 7 Days)' : 'Over Time'}
                 </h1>
 
                 {/* Threshold message - show if any annotation lacks sufficient data */}
@@ -228,9 +221,8 @@ const MoodHistory = () => {
 
                         const formattedTitle = formatConstructTitle(construct.title || construct.name)
                         const shortName = getShortConstructName(construct.name)
-                        // X-axis label: Time for today, Date/Time for 7days, Day for all time
-                        const xAxisLabel = historyData.period === 'today' ? 'Time' :
-                            historyData.period === '7days' ? 'Date/Time' : 'Day'
+                        // X-axis label: Date/Time for 7days, Day for all time
+                        const xAxisLabel = historyData.period === '7days' ? 'Date/Time' : 'Day'
                         const legendName = shortName
 
                         // Get annotation for this construct
@@ -254,13 +246,13 @@ const MoodHistory = () => {
                                         <XAxis
                                             dataKey="xLabel"
                                             tick={{ fontSize: 12 }}
-                                            angle={historyData.period === 'today' ? 0 : -45}
-                                            textAnchor={historyData.period === 'today' ? 'middle' : 'end'}
-                                            height={historyData.period === 'today' ? 40 : 80}
+                                            angle={-45}
+                                            textAnchor={'end'}
+                                            height={80}
                                             label={{
                                                 value: xAxisLabel,
                                                 position: 'insideBottom',
-                                                offset: historyData.period === 'today' ? -5 : -15
+                                                offset: -15
                                             }}
                                         />
                                         <YAxis

@@ -77,8 +77,8 @@
 
 .profile-select:focus {
   outline: none;
-  border-color: #850b0b;
-  box-shadow: 0 0 0 3px rgba(133, 11, 11, 0.1);
+  border-color: #0891B2;
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
 }
 
 .profile-textarea {
@@ -102,8 +102,8 @@
 
 .profile-textarea:focus {
   outline: none;
-  border-color: #850b0b;
-  box-shadow: 0 0 0 3px rgba(133, 11, 11, 0.1);
+  border-color: #0891B2;
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
 }
 
 .profile-last-updated {
@@ -134,7 +134,7 @@
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #850b0b;
+  accent-color: #0891B2;
 }
 
 .profile-disabilities-container {
@@ -169,7 +169,7 @@
 }
 
 .profile-submit-button {
-  background: #850b0b;
+  background: #0891B2;
   color: white;
   border: none;
   border-radius: 8px;
@@ -181,7 +181,7 @@
 }
 
 .profile-submit-button:hover {
-  background: #a00e0e;
+  background: #06B6D4;
   transform: translateY(-1px);
 }
 
