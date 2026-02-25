@@ -9,6 +9,8 @@ import profileRoutes from './profile.js'
 import adminRoutes from './admin.js'
 import chatRoutes from './chat.js'
 import scoresRoutes from './scores.js'
+import sleepRoutes from './sleep.js'
+import screenTimeRoutes from './screen-time.js'
 
 import { login, logout, getMe } from '../controllers/authController.js'
 
@@ -32,6 +34,8 @@ router.use('/profile', profileRoutes)
 router.use('/admin', adminRoutes)
 router.use('/chat', chatRoutes)
 router.use('/scores', scoresRoutes)
+router.use('/sleep', sleepRoutes)
+router.use('/screen-time', screenTimeRoutes)
 
 export default router
 

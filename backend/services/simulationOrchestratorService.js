@@ -7,7 +7,6 @@ import {
     generateSleepData,
     generateSRLData,
     generateScreenTimeData,
-    generateSocialMediaData,
     generateLMSData
 } from './simulators/index.js';
 import { computeAllScores } from './scoring/index.js';
@@ -106,14 +105,10 @@ async function generateStudentData(pool, userId) {
                 .then(() => logger.info(`SRL simulation complete for ${userId}`))
                 .catch(err => logger.error(`SRL simulation failed: ${err.message}`)),
 
-            // Screen Time THEN Social Media (Correlation dependency)
+            // Screen Time Simulator
             generateScreenTimeData(pool, userId, 7, profile)
-                .then(() => {
-                    logger.info(`Screen time simulation complete for ${userId}`);
-                    return generateSocialMediaData(pool, userId, 7, profile);
-                })
-                .then(() => logger.info(`Social media simulation complete for ${userId}`))
-                .catch(err => logger.error(`Screen/Social simulation failed: ${err.message}`)),
+                .then(() => logger.info(`Screen time simulation complete for ${userId}`))
+                .catch(err => logger.error(`Screen time simulation failed: ${err.message}`)),
 
             // LMS Data Simulator
             generateLMSData(pool, userId, 7, profile)

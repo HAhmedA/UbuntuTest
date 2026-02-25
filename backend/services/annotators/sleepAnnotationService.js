@@ -441,7 +441,7 @@ async function hasSleepData(pool, userId) {
 
 /**
  * Get cluster-based scores for scoring aggregation
- * Uses GMM clustering + percentile scoring instead of Z-scores
+ * Uses PGMoE clustering + percentile scoring instead of Z-scores
  */
 async function getRawScoresForScoring(pool, userId) {
     const { computeClusterScores } = await import('../scoring/clusterPeerService.js');

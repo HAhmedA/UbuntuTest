@@ -242,4 +242,4 @@ flowchart LR
 | MAX_ALIGNMENT_RETRIES | 1 | alignmentService.js |
 | SESSION_TIMEOUT | 30 min | contextManagerService.js |
 | SUMMARY_WINDOW_DAYS | 10 | summarizationService.js |
-| MAX_SESSION_MESSAGES | 20 | promptAssemblerService.js |
+| MAX_SESSION_MESSAGES | 50 | promptAssemblerService.js |

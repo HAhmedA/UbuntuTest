@@ -60,12 +60,13 @@ const SRL_PATTERNS = {
 const DEFAULT_PROFILE = 'average';
 
 // Concept groupings for generating correlated biases
+// Keys must match CONCEPT_SHORT_NAMES in srlAnnotationService.js
 const CONCEPT_GROUPS = {
-    planning: ['goal_setting', 'planning', 'task_strategies'],
-    monitoring: ['self_observation', 'self_judgement', 'self_reaction'],
-    motivation: ['self_efficacy', 'intrinsic_motivation', 'extrinsic_motivation'],
-    cognition: ['elaboration', 'critical_thinking', 'metacognitive_regulation'],
-    affect: ['anxiety', 'effort_regulation']
+    planning: ['efficiency', 'tracking', 'clarity', 'timeliness'],
+    motivation: ['motivation', 'effort', 'importance'],
+    social: ['help_seeking', 'community', 'learning_from_feedback'],
+    affect: ['anxiety', 'enjoyment'],
+    metacognition: ['focus', 'self_assessment']
 };
 
 // =============================================================================

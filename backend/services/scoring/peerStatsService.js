@@ -1,5 +1,5 @@
 // Peer Stats Service
-// Centralized peer comparison using Z-scores across all datasources
+// Z-score based peer comparison (fallback/supplementary to PGMoE clustering)
 // Computes population mean/stddev per metric dimension, then categorizes each user
 //
 // Categories (all green shades — positive framing):
@@ -63,7 +63,6 @@ async function getAllUserMetrics(conceptId, days = 7) {
         case 'lms': return getLMSMetrics(days);
         case 'sleep': return getSleepMetrics(days);
         case 'screen_time': return getScreenTimeMetrics(days);
-        case 'social_media': return getSocialMediaMetrics(days);
         case 'srl': return getSRLMetrics();
         default:
             logger.warn(`peerStatsService: unknown concept ${conceptId}`);
@@ -153,29 +152,6 @@ async function getScreenTimeMetrics(days) {
     return metrics;
 }
 
-// ---- Social Media ----
-async function getSocialMediaMetrics(days) {
-    const { rows } = await pool.query(`
-        SELECT user_id,
-               AVG(total_social_minutes) as avg_social_minutes,
-               AVG(number_of_social_sessions) as avg_checks,
-               AVG(average_session_length) as avg_session_length
-        FROM public.social_media_sessions
-        WHERE session_date >= CURRENT_DATE - INTERVAL '${days} days'
-        GROUP BY user_id
-    `);
-
-    const metrics = {};
-    for (const r of rows) {
-        metrics[r.user_id] = {
-            social_minutes: parseFloat(r.avg_social_minutes) || 0,
-            number_of_checks: parseFloat(r.avg_checks) || 0,
-            avg_session_length: parseFloat(r.avg_session_length) || 0
-        };
-    }
-    return metrics;
-}
-
 // ---- SRL ----
 async function getSRLMetrics() {
     const { rows } = await pool.query(`
@@ -218,12 +194,7 @@ const DIMENSION_DEFS = {
     screen_time: {
         volume: { metric: 'screen_minutes', inverted: true },  // less = better
         distribution: { metric: 'longest_session', inverted: true },  // shorter = better
-        late_night: { metric: 'late_night', inverted: true }   // less = better
-    },
-    social_media: {
-        volume: { metric: 'social_minutes', inverted: true },  // less = better
-        frequency: { metric: 'number_of_checks', inverted: true },  // fewer = better
-        session_style: { metric: 'avg_session_length', inverted: true }   // shorter = better
+        pre_sleep: { metric: 'late_night', inverted: true }   // less = better
     }
 };
 
@@ -235,7 +206,7 @@ const DIMENSION_DEFS = {
  * Compute peer-comparison Z-scores and categories for a user in a given concept
  *
  * @param {Object} dbPool - Database pool (unused, we use the imported pool)
- * @param {string} conceptId - 'lms', 'sleep', 'screen_time', 'social_media', 'srl'
+ * @param {string} conceptId - 'lms', 'sleep', 'screen_time', 'srl'
  * @param {string} userId - Target user ID
  * @param {number} days - Look-back window (default 7)
  * @returns {Array<{domain, category, categoryLabel, zScore}>}

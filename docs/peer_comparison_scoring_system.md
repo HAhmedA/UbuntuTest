@@ -10,7 +10,7 @@
 1. [Overview](#overview)
 2. [Data Sources & Simulators](#data-sources--simulators)
 3. [Annotation Services](#annotation-services)
-4. [Clustering Engine (GMM)](#clustering-engine-gmm)
+4. [Clustering Engine (PGMoE)](#clustering-engine-pgmoe)
 5. [Scoring Pipeline](#scoring-pipeline)
 6. [Historical Score Seeding](#historical-score-seeding)
 7. [API Layer](#api-layer)
@@ -24,7 +24,7 @@
 
 ## Overview
 
-The system compares each student against **peers with similar behavioral patterns** using Gaussian Mixture Model (GMM) clustering. Instead of a simple average or Z-score, students are grouped into **K behavioral clusters** per concept (K is automatically selected via BIC, typically 2–6), and their score is expressed as a percentile within their cluster.
+The system compares each student against **peers with similar behavioral patterns** using a Parsimonious Gaussian Mixture of Experts (PGMoE). Students are grouped into **K behavioral clusters** per concept (K=2–4, automatically selected via BIC+AIC+entropy), with a gating network that makes cluster membership feature-dependent. Scores are expressed as percentiles within each cluster.
 
 The gauge visualization shows **two arrow needles**:
 - **Today** (black arrow) — the student's current score
@@ -58,7 +58,6 @@ Each concept has a **simulator** that generates realistic data for test accounts
 |---|---|---|---|
 | Sleep | `sleepDataSimulator.js` | `sleep_sessions` | total_sleep_minutes, awakenings_count, bedtime |
 | Screen Time | `screenTimeDataSimulator.js` | `screen_time_sessions` | total_screen_minutes, longest_session, late_night_minutes |
-| Social Media | `socialMediaDataSimulator.js` | `social_media_sessions` | total_social_minutes, number_of_checks, avg_session_length |
 | LMS | `lmsDataSimulator.js` | `lms_sessions` | total_active_minutes, days_active, active_percent, avg_session_duration |
 | SRL | `srlDataSimulator.js` | `srl_responses` | 14 Likert-scale concept scores (1–5) |
 
@@ -77,10 +76,9 @@ Each concept has an **annotation service** that:
 | Concept | Annotation Service | Domains |
 |---|---|---|
 | Sleep | `sleepAnnotationService.js` | duration, continuity, timing |
-| Screen Time | `screenTimeAnnotationService.js` | volume, distribution, late_night |
-| Social Media | `socialMediaAnnotationService.js` | volume, frequency, session_style |
+| Screen Time | `screenTimeAnnotationService.js` | volume, distribution, pre_sleep |
 | LMS | `lmsAnnotationService.js` | volume, consistency, action_mix, session_quality |
-| SRL | `srlAnnotationService.js` | 14 concept keys (goal_setting, planning, etc.) |
+| SRL | `srlAnnotationService.js` | 14 concept keys (efficiency, importance, tracking, clarity, effort, focus, help_seeking, community, timeliness, motivation, anxiety, enjoyment, learning_from_feedback, self_assessment) |
 
 Each annotation service's `getRawScoresForScoring()` function calls:
 ```javascript
@@ -94,64 +92,76 @@ And returns domain scores enriched with:
 
 ---
 
-## Clustering Engine (GMM)
+## Clustering Engine (PGMoE)
 
 **File:** `backend/services/scoring/clusterPeerService.js`
 
 ### Algorithm
 
-The system uses a **Gaussian Mixture Model** fitted via the **Expectation-Maximization (EM) algorithm**. The number of clusters **K is automatically selected** using BIC (Bayesian Information Criterion), testing K=2 through K=6.
+The system uses a **Parsimonious Gaussian Mixture of Experts (PGMoE)** fitted via a **modified EM algorithm**. Unlike standard GMM (which uses fixed mixing weights), PGMoE uses a **gating network** `g_k(x) = softmax(W·x + b)` that makes cluster membership **feature-dependent** — a student's cluster assignment is directly conditioned on their behavioral profile.
+
+The model is trained on **all users** (no train/test split) because this is unsupervised clustering of the full population, not prediction.
 
 #### Step-by-step:
 
 1. **Gather metrics** — Query all users' raw metrics for the concept (last 7 days)
-2. **Build feature matrix** — Winsorize each dimension at P5/P95, then scale to [0, 1]. This prevents outliers from compressing the majority of data into a narrow band. Inverted metrics (where less = better, e.g., screen time) are flipped so higher always = better
-3. **Select optimal K** — Fit GMM for each K from 2 to 6, compute BIC for each, select the K with the lowest BIC (best fit with fewest parameters)
-4. **Initialize GMM** — K-Means++ seeding for centroids, uniform weights, global variance
-5. **Run EM** — Up to 50 iterations with log-likelihood convergence check (tolerance 1e-4)
-   - **E-step:** Compute responsibilities (probability each point belongs to each cluster)
-   - **M-step:** Update means, variances, and mixing weights
+2. **Winsorize + scale** — Clip each dimension at P5/P95, then scale to [0, 1]. Inverted metrics are flipped so higher always = better
+3. **Center-normalize** — Subtract mean, divide by std per dimension (zero mean, unit variance). This ensures the gating network and Gaussian distances aren't biased by differing dimension spreads. Centering is only for clustering — downstream scores use the original [0,1] scale
+4. **Select optimal (K, covType)** — Test all combinations of K=2–4 and 4 parsimonious covariance models (EII, VII, EEI, VVI). Rank by composite BIC(40%) + AIC(30%) + entropy(30%) criterion
+5. **Fit PGMoE** — K-Means++ initialization, then EM up to 50 iterations (tolerance 1e-4):
+   - **E-step:** `r_ik = g_k(x_i) · N(x_i | μ_k, Σ_k) / Σ_j g_j(x_i) · N(x_i | μ_j, Σ_j)`
+   - **M-step:** Update gating W,b (IRLS gradient ascent with L2 regularization), means (weighted avg), covariance (with parsimony constraints)
 6. **Hard assignment** — Each user is assigned to their most-likely cluster via argmax
 7. **Order clusters** — Sort by mean composite score (low → high) to assign labels
 8. **Compute percentiles** — Within each cluster, compute P5, P50, P95 of composite scores
 9. **Map user score** — User's composite score is mapped to 0–100 within their cluster's P5–P95 range
 
-### Normalization: Winsorized P5/P95
+### Normalization: Winsorized P5/P95 + Center-Normalize
 
-Instead of naive min-max scaling (where a single outlier compresses everyone else), each dimension is:
+Each dimension goes through two normalization stages:
 
-1. **Sorted** across all users
-2. **Clipped** to the [P5, P95] range — extreme values are capped
-3. **Scaled** to [0, 1] using P5 as the new min and P95 as the new max
-
+**Stage 1 — Winsorize + scale to [0,1]:**
 ```javascript
 const clipped = Math.max(p5, Math.min(p95, raw));
-const normalized = (clipped - p5) / (p95 - p5);  // 0 to 1
+const scaled = (clipped - p5) / (p95 - p5);  // 0 to 1
 ```
 
-### Optimal K Selection (BIC)
-
-The **Bayesian Information Criterion** balances model fit against complexity:
-
-```
-BIC = -2 · logL + numParams · ln(n)
+**Stage 2 — Center-normalize (for model fitting only):**
+```javascript
+const centered = (scaled - mean) / std;  // μ=0, σ=1
 ```
 
-- **logL** — log-likelihood of the data under the fitted GMM
-- **numParams** — number of free parameters: `k × (2d + 1) - 1` for K components, D dimensions
-- **n** — number of data points (users)
+### Parsimonious Covariance Models
 
-Lower BIC = better. The system tests K=2 through K=6 and picks the minimum.
+4 constraint levels are tested. Fewer parameters = more parsimonious:
+
+| Model | Constraint | Free Params | Description |
+|---|---|---|---|
+| `EII` | σ²I shared | 1 | Equal spherical — simplest |
+| `VII` | σ_k²I | K | Varying spherical per cluster |
+| `EEI` | diag(Σ) shared | D | Equal diagonal across clusters |
+| `VVI` | diag(Σ_k) | K×D | Varying diagonal — most flexible |
+
+### Composite Model Selection (BIC + AIC + Entropy)
+
+All (K, covType) candidates are ranked by a **weighted composite of ranks**:
+
+| Criterion | Formula | Weight | Goal |
+|---|---|---|---|
+| **BIC** | -2·logL + p·ln(n) | 40% | Strong complexity penalty |
+| **AIC** | -2·logL + 2·p | 30% | Milder complexity penalty |
+| **Entropy** | normalized to [0,1] | 30% | Reward crisp cluster separation |
+
+> Parameter count includes gating params: `(K-1) × (D+1)` + K×D means + cov params
 
 #### Example with 20 test users:
 
-| Concept | Optimal K | BIC |
-|---|---|---|
-| Sleep | 6 | -42.26 |
-| Screen Time | 6 | -125.10 |
-| Social Media | 5 | -105.13 |
-| LMS | 6 | -203.79 |
-| SRL | 5 | -728.90 |
+| Concept | K | Cov Model | BIC |
+|---|---|---|---|
+| Sleep | 4 | VVI | 143.0 |
+| Screen Time | 3 | VII | -59.9 |
+| LMS | 4 | VVI | 44.0 |
+| SRL | 3 | VII | 124.6 |
 
 ### Dimension Definitions
 
@@ -171,12 +181,7 @@ const DIMENSION_DEFS = {
     screen_time: {
         volume:       { metric: 'screen_minutes',   inverted: true },
         distribution: { metric: 'longest_session',  inverted: true },
-        late_night:   { metric: 'late_night',        inverted: true }
-    },
-    social_media: {
-        volume:        { metric: 'social_minutes',      inverted: true },
-        frequency:     { metric: 'number_of_checks',    inverted: true },
-        session_style: { metric: 'avg_session_length',  inverted: true }
+        pre_sleep:    { metric: 'late_night',        inverted: true }
     }
 };
 ```
@@ -195,7 +200,7 @@ Labels are generated dynamically via `generateClusterLabels(k)` based on the sel
 
 ### SRL Special Handling
 
-SRL uses variable-dimension clustering where each SRL concept key becomes a feature dimension. Scores are normalized from the 1–5 Likert scale to [0, 1]. Inverted concepts (e.g., anxiety) are flipped. K is selected via BIC just like other concepts.
+SRL uses variable-dimension clustering where each SRL concept key becomes a feature dimension. Scores are normalized from the 1–5 Likert scale to [0, 1]. Inverted concepts (e.g., anxiety) are flipped. Center-normalization and PGMoE model selection run identically to other concepts.
 
 ---
 
@@ -205,7 +210,7 @@ SRL uses variable-dimension clustering where each SRL concept key becomes a feat
 
 ### `computeAllScores(userId)`
 
-1. For each concept (sleep, lms, screen_time, social_media, srl):
+1. For each concept (sleep, lms, screen_time, srl):
    - Calls the annotation service's `getRawScoresForScoring()`
    - Receives per-domain scores + cluster metadata
    - Computes a weighted composite score (0–100)
@@ -439,11 +444,11 @@ CREATE TABLE public.concept_score_history (
 
 | File | Purpose |
 |---|---|
-| `services/scoring/clusterPeerService.js` | GMM clustering engine, BIC model selection, Winsorized normalization, dynamic cluster labels |
+| `services/scoring/clusterPeerService.js` | PGMoE engine, gating network, parsimonious covariance, BIC+AIC+entropy model selection |
 | `services/scoring/scoreComputationService.js` | Orchestrates per-concept score computation |
 | `services/scoring/conceptScoreService.js` | Score storage, 7-day average, history tracking |
 | `services/simulationOrchestratorService.js` | Coordinates simulators + seeds historical scores |
-| `services/annotators/sleep|lms|screenTime|socialMedia|srlAnnotationService.js` | Per-concept annotation + cluster integration |
+| `services/annotators/sleep|lms|screenTime|srlAnnotationService.js` | Per-concept annotation + cluster integration |
 | `routes/scores.js` | API endpoint serving scores + cluster data |
 | `postgres/initdb/010_concept_scores.sql` | Score tables schema |
 | `postgres/initdb/011_peer_clusters.sql` | Cluster tables schema |

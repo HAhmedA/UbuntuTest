@@ -1,0 +1,272 @@
+/* ── Screen Time Form Page ───────────────────────────────── */
+
+.screen-time-page {
+    width: 100%;
+    min-height: calc(100vh - 64px);
+    background: #f7f8fa;
+    padding: 32px 24px;
+}
+
+.screen-time-container {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.screen-time-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: white;
+    color: #374151;
+    border: 1.5px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    margin-bottom: 20px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.screen-time-back-btn:hover {
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+}
+
+.screen-time-card {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.screen-time-title {
+    margin: 0 0 6px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.screen-time-subtitle {
+    margin: 0 0 28px 0;
+    font-size: 14px;
+    color: #6B7280;
+    line-height: 1.5;
+}
+
+/* ── Question blocks ─────────────────────────────────────── */
+
+.st-question {
+    margin-bottom: 28px;
+}
+
+.st-question:last-of-type {
+    margin-bottom: 20px;
+}
+
+.st-question-label {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.st-question-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: #0891B2;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 50%;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+/* ── Radio option groups ─────────────────────────────────── */
+
+.st-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.st-option {
+    position: relative;
+}
+
+.st-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.st-option-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background: #F9FAFB;
+    border: 1.5px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 48px;
+    text-align: center;
+}
+
+.st-option-label:hover {
+    background: #F0FDFA;
+    border-color: #99F6E4;
+    color: #0891B2;
+}
+
+.st-option input[type="radio"]:checked+.st-option-label {
+    background: #0891B2;
+    border-color: #0891B2;
+    color: white;
+    box-shadow: 0 2px 6px rgba(8, 145, 178, 0.3);
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+
+.st-divider {
+    height: 1px;
+    background: #E5E7EB;
+    margin: 20px 0;
+}
+
+/* ── Submit ──────────────────────────────────────────────── */
+
+.st-submit-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.st-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 32px;
+    background: #0891B2;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(8, 145, 178, 0.2);
+}
+
+.st-submit-btn:hover:not(:disabled) {
+    background: #06B6D4;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(8, 145, 178, 0.3);
+}
+
+.st-submit-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.st-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.st-submit-msg {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.st-msg-success {
+    color: #059669;
+}
+
+.st-msg-error {
+    color: #DC2626;
+}
+
+/* ── Read-only summary ───────────────────────────────────── */
+
+.st-readonly-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: #ECFDF5;
+    color: #059669;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 20px;
+    margin-bottom: 20px;
+}
+
+.st-readonly-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.st-readonly-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 18px;
+    background: #F0FDFA;
+    border-radius: 10px;
+    border: 1px solid #CCFBF1;
+}
+
+.st-readonly-stat .stat-label {
+    font-size: 11px;
+    color: #6B7280;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.st-readonly-stat .stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0891B2;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .screen-time-card {
+        padding: 24px 20px;
+    }
+
+    .st-options {
+        gap: 6px;
+    }
+
+    .st-option-label {
+        padding: 8px 12px;
+        font-size: 12px;
+        min-width: 40px;
+    }
+
+    .st-submit-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

@@ -7,6 +7,7 @@ import Login from "../pages/Login"
 import Register from "../pages/Register"
 import MoodHistory from "../pages/MoodHistory"
 import Profile from "../pages/Profile"
+import ScreenTimeForm from "../pages/ScreenTimeForm"
 import RequireAdmin from "../components/RequireAdmin"
 import RequireAuth from "../components/RequireAuth"
 import { useReduxDispatch, useReduxSelector } from '../redux'
@@ -44,6 +45,7 @@ const Content = (): React.ReactElement => (
             <Route path="/edit/:id" element={<RequireAuth><RequireAdmin><Edit /></RequireAdmin></RequireAuth>}></Route>
             <Route path="/mood-history/:id" element={<RequireAuth><MoodHistory /></RequireAuth>}></Route>
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>}></Route>
+            <Route path="/screen-time" element={<RequireAuth><ScreenTimeForm /></RequireAuth>}></Route>
             <Route element={<NoMatch />}></Route>
         </Routes>
     </>

@@ -26,10 +26,10 @@ const DISTRIBUTION_THRESHOLDS = {
 };
 
 /**
- * Late-night thresholds (minutes after 10 PM)
- * Determines late-night screen exposure
+ * Pre-sleep thresholds (screen time before bed)
+ * Determines pre-sleep screen exposure
  */
-const LATE_NIGHT_THRESHOLDS = {
+const PRE_SLEEP_THRESHOLDS = {
     minimal: 15,        // < 15 min = minimal
     some: 45            // 15-45 = some, > 45 = high
 };
@@ -119,37 +119,37 @@ function evaluateDistribution(session) {
 }
 
 /**
- * Evaluate late-night screen use
+ * Evaluate pre-sleep screen use
  * @param {Object} session - Screen time session data
  * @returns {Object} - Judgment object
  */
-function evaluateLateNight(session) {
-    const lateNightMinutes = session.late_night_screen_minutes;
+function evaluatePreSleep(session) {
+    const preSleepMinutes = session.late_night_screen_minutes;
 
-    if (lateNightMinutes < LATE_NIGHT_THRESHOLDS.minimal) {
+    if (preSleepMinutes < PRE_SLEEP_THRESHOLDS.minimal) {
         return {
-            judgment_key: 'late_night_minimal',
+            judgment_key: 'pre_sleep_minimal',
             severity: 'ok',
-            explanation: 'Minimal late-night screen use',
-            explanation_llm: `Late-night screen use was minimal (${lateNightMinutes} minutes after 10 PM). Avoiding screens before bed supports better sleep quality and circadian rhythm.`
+            explanation: 'Minimal pre-sleep screen use',
+            explanation_llm: `Pre-sleep screen use was minimal (${preSleepMinutes} minutes before bed). Avoiding screens before bed supports better sleep quality and circadian rhythm.`
         };
     }
 
-    if (lateNightMinutes <= LATE_NIGHT_THRESHOLDS.some) {
+    if (preSleepMinutes <= PRE_SLEEP_THRESHOLDS.some) {
         return {
-            judgment_key: 'late_night_some',
+            judgment_key: 'pre_sleep_some',
             severity: 'warning',
-            explanation: 'Some late-night screen activity',
-            explanation_llm: `There was ${lateNightMinutes} minutes of screen time after 10 PM. Late-night screen exposure can interfere with sleep onset. Consider reducing screen use in the hour before bed.`
+            explanation: 'Some pre-sleep screen activity',
+            explanation_llm: `There was ${preSleepMinutes} minutes of screen time before bed. Pre-sleep screen exposure can interfere with sleep onset. Consider reducing screen use in the hour before bed.`
         };
     }
 
     // > some threshold = high
     return {
-        judgment_key: 'late_night_high',
+        judgment_key: 'pre_sleep_high',
         severity: 'poor',
-        explanation: 'High late-night screen use',
-        explanation_llm: `High late-night screen use (${lateNightMinutes} minutes after 10 PM) can significantly disrupt sleep quality. Blue light exposure suppresses melatonin production. Try using night mode and setting a screen curfew at least 1 hour before bed.`
+        explanation: 'High pre-sleep screen use',
+        explanation_llm: `High pre-sleep screen use (${preSleepMinutes} minutes before bed) can significantly disrupt sleep quality. Blue light exposure suppresses melatonin production. Try using night mode and setting a screen curfew at least 1 hour before bed.`
     };
 }
 
@@ -184,7 +184,7 @@ async function computeJudgments(pool, sessionId) {
     const judgments = [
         { domain: 'volume', ...evaluateVolume(session, baseline) },
         { domain: 'distribution', ...evaluateDistribution(session) },
-        { domain: 'late_night', ...evaluateLateNight(session) }
+        { domain: 'pre_sleep', ...evaluatePreSleep(session) }
     ];
 
     // Store judgments
@@ -250,7 +250,6 @@ async function recomputeBaseline(pool, userId, days = 7) {
            AVG(total_screen_minutes) as avg_total,
            AVG(longest_continuous_session) as avg_longest,
            AVG(late_night_screen_minutes) as avg_late_night,
-           AVG(number_of_screen_sessions) as avg_sessions,
            COUNT(*) as sessions_count
          FROM public.screen_time_sessions
          WHERE user_id = $1 AND session_date >= CURRENT_DATE - INTERVAL '${days} days'`,
@@ -265,16 +264,15 @@ async function recomputeBaseline(pool, userId, days = 7) {
 
     await pool.query(
         `INSERT INTO public.screen_time_baselines 
-         (user_id, avg_total_minutes, avg_longest_session, avg_late_night_minutes, avg_session_count, sessions_count, computed_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())
+         (user_id, avg_total_minutes, avg_longest_session, avg_late_night_minutes, sessions_count, computed_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
          ON CONFLICT (user_id) DO UPDATE SET
            avg_total_minutes = EXCLUDED.avg_total_minutes,
            avg_longest_session = EXCLUDED.avg_longest_session,
            avg_late_night_minutes = EXCLUDED.avg_late_night_minutes,
-           avg_session_count = EXCLUDED.avg_session_count,
            sessions_count = EXCLUDED.sessions_count,
            computed_at = NOW()`,
-        [userId, stats.avg_total, stats.avg_longest, stats.avg_late_night, stats.avg_sessions, stats.sessions_count]
+        [userId, stats.avg_total, stats.avg_longest, stats.avg_late_night, stats.sessions_count]
     );
 }
 
@@ -382,7 +380,7 @@ async function hasScreenTimeData(pool, userId) {
 
 /**
  * Get cluster-based scores for scoring aggregation
- * Uses GMM clustering + percentile scoring instead of Z-scores
+ * Uses PGMoE clustering + percentile scoring instead of Z-scores
  */
 async function getRawScoresForScoring(pool, userId) {
     const { computeClusterScores } = await import('../scoring/clusterPeerService.js');
@@ -442,12 +440,12 @@ export {
     // Individual evaluators (for testing)
     evaluateVolume,
     evaluateDistribution,
-    evaluateLateNight,
+    evaluatePreSleep,
 
     // Thresholds (for testing/configuration)
     VOLUME_THRESHOLDS,
     DISTRIBUTION_THRESHOLDS,
-    LATE_NIGHT_THRESHOLDS
+    PRE_SLEEP_THRESHOLDS
 };
 
 

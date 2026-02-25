@@ -1,6 +1,6 @@
 // Concept Score Service
-// Main scoring unit that aggregates aspect judgments into single concept scores
-// Generic and concept-agnostic - works for any domain with severity-based judgments
+// Aggregates per-domain scores into single concept scores
+// Supports both legacy severity-based and PGMoE cluster-based raw scoring
 
 import pool from '../../config/database.js';
 import logger from '../../utils/logger.js';
@@ -227,8 +227,7 @@ function formatScoreForChatbot(conceptId, score, trend) {
         sleep: 'Sleep quality',
         srl: 'Self-Regulated Learning',
         lms: 'LMS Engagement',
-        screen_time: 'Screen Time habits',
-        social_media: 'Social Media habits'
+        screen_time: 'Screen Time habits'
     };
 
     const trendDescriptions = {

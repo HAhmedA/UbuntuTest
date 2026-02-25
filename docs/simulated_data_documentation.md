@@ -6,7 +6,7 @@ This document provides a comprehensive overview of all simulated data types, the
 
 ## Overview
 
-The system generates data for 5 domains, each based on student achievement profiles (`high_achiever`, `average`, `low_achiever`):
+The system generates data for 4 domains, each based on student achievement profiles (`high_achiever`, `average`, `low_achiever`):
 
 | Domain | Simulator File | Annotation File | Primary Purpose |
 |--------|---------------|-----------------|-----------------|
@@ -14,7 +14,6 @@ The system generates data for 5 domains, each based on student achievement profi
 | **SRL** | `srlDataSimulator.js` | `srlAnnotationService.js` | Self-regulated learning questionnaire |
 | **LMS** | `lmsDataSimulator.js` | `lmsAnnotationService.js` | Learning management system activity |
 | **Screen Time** | `screenTimeDataSimulator.js` | `screenTimeAnnotationService.js` | Digital device usage |
-| **Social Media** | `socialMediaDataSimulator.js` | `socialMediaAnnotationService.js` | Social platform engagement |
 
 ---
 
@@ -85,9 +84,9 @@ Responses are generated for 14 concepts on a 1-5 Likert scale:
 
 | Modifier | High Achiever | Average | Low Achiever |
 |----------|---------------|---------|--------------|
-| Consistency factor | 0.85 | 0.75 | 0.70 |
-| Anomaly chance | 5% | 12% | 10% |
-| Anomaly shift | -1.5 | ±1 | +2 |
+| Consistency factor | 0.85 | 0.65 | 0.70 |
+| Anomaly chance | 12% | 18% | 10% |
+| Anomaly shift | -2 | 0 (random ±2) | +2 |
 | Weekend effect | -0.3 | -0.5 | -0.8 |
 | Weekly trend | +0.05 | 0 | -0.03 |
 
@@ -163,10 +162,9 @@ Responses are generated for 14 concepts on a 1-5 Likert scale:
 
 | Attribute | Description | High Achiever | Average | Low Achiever |
 |-----------|-------------|---------------|---------|--------------|
-| `total_screen_minutes` | Daily screen time | ~180 ± 40 min (~3h) | ~300 ± 60 min (~5h) | ~420 ± 80 min (~7h) |
-| `late_night_screen_minutes` | After 10 PM | ~15 ± 10 min | ~30 ± 15 min | ~60 ± 30 min |
-| `longest_continuous_session` | Max unbroken session | ~40 ± 15 min | ~60 ± 25 min | ~90 ± 35 min |
-| `number_of_screen_sessions` | Session count | ~8 ± 3 | ~12 ± 4 | ~16 ± 5 |
+| `total_screen_minutes` | Daily screen time | ~180 ± 40 min (~3h) | ~300 ± 60 min (~5h) | ~450 ± 80 min (~7.5h) |
+| `late_night_screen_minutes` | Before sleep | ~10 ± 8 min | ~30 ± 15 min | ~60 ± 25 min |
+| `longest_continuous_session` | Max unbroken session | ~35 ± 10 min | ~55 ± 20 min | ~100 ± 30 min |
 
 ### Behavioral Modifiers
 
@@ -187,45 +185,9 @@ Responses are generated for 14 concepts on a 1-5 Likert scale:
 | **Distribution** | `screen_usage_balanced` | Longest < 45 min | ok |
 | | `screen_usage_moderate_sessions` | Longest 45-90 min | warning |
 | | `screen_usage_extended` | Longest > 90 min | poor |
-| **Late Night** | `late_night_minimal` | < 15 min after 10 PM | ok |
-| | `late_night_some` | 15-45 min after 10 PM | warning |
-| | `late_night_high` | > 45 min after 10 PM | poor |
-
----
-
-## 5. Social Media Data
-
-### Simulated Attributes
-
-| Attribute | Description | High Achiever | Average | Low Achiever |
-|-----------|-------------|---------------|---------|--------------|
-| `total_social_minutes` | Daily social media | ~25 ± 10 min | ~60 ± 25 min | ~150 ± 45 min |
-| `number_of_social_sessions` | Check-ins count | ~5 ± 2 | ~10 ± 4 | ~20 ± 6 |
-| `average_session_length` | Avg session duration | ~5 ± 2 min | ~8 ± 4 min | ~12 ± 5 min |
-| `late_night_social_minutes` | After 10 PM | ~5 ± 3 min | ~15 ± 10 min | ~35 ± 20 min |
-
-### Behavioral Modifiers
-
-| Modifier | High Achiever | Average | Low Achiever |
-|----------|---------------|---------|--------------|
-| Anomaly chance | 10% | 15% | 8% |
-| Weekend increase | +15 min | +30 min | +50 min |
-| Recovery factor | 0.8 | 0.5 | 0.3 |
-
-### Annotation Domains & Calculations
-
-| Domain | Judgment | Condition | Severity |
-|--------|----------|-----------|----------|
-| **Volume** | `social_low` | < 30 min/day | ok |
-| | `social_moderate` | 30-90 min/day | ok |
-| | `social_high` | 90-180 min/day | warning |
-| | `social_excessive` | > 180 min/day | poor |
-| **Frequency** | `checking_infrequent` | ≤ 5 sessions | ok |
-| | `checking_moderate` | 6-15 sessions | warning |
-| | `checking_frequent` | > 15 sessions | poor |
-| **Session Style** | `sessions_controlled` | Avg < 10 min | ok |
-| | `sessions_moderate` | Avg 10-25 min | ok |
-| | `sessions_long` | Avg > 25 min | warning |
+| **Pre-Sleep** | `pre_sleep_minimal` | < 15 min before bed | ok |
+| | `pre_sleep_some` | 15-45 min before bed | warning |
+| | `pre_sleep_high` | > 45 min before bed | poor |
 
 ---
 

@@ -3,7 +3,7 @@
 -- All passwords: "test"
 -- Profiles rotate: high_achiever, average, low_achiever
 --
--- Simulated data (SRL, Sleep, Screen Time, Social Media, LMS) is generated
+-- Simulated data (SRL, Sleep, Screen Time, LMS) is generated
 -- automatically by the backend seedDataService on startup.
 -- ============================================================================
 

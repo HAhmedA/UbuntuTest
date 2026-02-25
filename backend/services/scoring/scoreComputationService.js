@@ -9,7 +9,6 @@ import { computeAndStoreRawScore, getAllScoresForChatbot } from './conceptScoreS
 // Import raw score adapters from each annotation service
 import { getRawScoresForScoring as getSleepRawScores } from '../annotators/sleepAnnotationService.js';
 import { getRawScoresForScoring as getScreenTimeRawScores } from '../annotators/screenTimeAnnotationService.js';
-import { getRawScoresForScoring as getSocialMediaRawScores } from '../annotators/socialMediaAnnotationService.js';
 import { getRawScoresForScoring as getLMSRawScores } from '../annotators/lmsAnnotationService.js';
 import { getRawScoresForScoring as getSRLRawScores } from '../annotators/srlAnnotationService.js';
 
@@ -35,9 +34,6 @@ async function computeConceptScore(userId, conceptId) {
                 break;
             case 'screen_time':
                 rawScores = await getScreenTimeRawScores(pool, userId);
-                break;
-            case 'social_media':
-                rawScores = await getSocialMediaRawScores(pool, userId);
                 break;
             case 'lms':
                 rawScores = await getLMSRawScores(pool, userId);
@@ -74,7 +70,7 @@ async function computeConceptScore(userId, conceptId) {
 async function computeAllScores(userId) {
     logger.info(`Computing all concept scores for user ${userId}`);
 
-    const concepts = ['sleep', 'screen_time', 'social_media', 'lms', 'srl'];
+    const concepts = ['sleep', 'screen_time', 'lms', 'srl'];
     const results = {};
 
     for (const conceptId of concepts) {

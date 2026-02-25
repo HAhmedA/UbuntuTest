@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Surveys from '../components/Surveys'
 import ScoreGauge from '../components/ScoreGauge'
+import SleepSlider from '../components/SleepSlider'
 import { useReduxSelector, useReduxDispatch } from '../redux'
 import { load } from '../redux/surveys'
 import { loadAnnotations, Annotation } from '../redux/results'
@@ -201,10 +202,7 @@ const Home = () => {
         timing: 'How consistent your bedtime is each night. Lower variation is better.',
         // Screen Time
         distribution: 'Length of your longest continuous screen session. Shorter is better.',
-        late_night: 'Screen time after midnight. Less late-night screen time is better.',
-        // Social Media
-        frequency: 'Number of times you check social media per day. Fewer checks is better.',
-        session_style: 'Average length of each social media session. Shorter is better.',
+        pre_sleep: 'Screen time before going to sleep. Less pre-sleep screen time is better.',
         // SRL
         goal_setting: 'How well you set clear learning goals before studying. Higher is better.',
         planning: 'How effectively you plan your study time and strategies. Higher is better.',
@@ -594,6 +592,24 @@ const Home = () => {
                         className='welcome-card-illustration'
                     />
                 </div>
+
+                {/* Sleep Slider */}
+                <SleepSlider />
+
+                {/* Screen Time Questionnaire Link */}
+                <Link to="/screen-time" className='mood-card' style={{ display: 'block', textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                            <h2 className='mood-card-title' style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                📱 Daily Screen Time
+                            </h2>
+                            <p className='mood-card-description' style={{ marginBottom: 0 }}>
+                                Log your screen usage from yesterday — 3 quick questions
+                            </p>
+                        </div>
+                        <span style={{ fontSize: '24px', color: '#9CA3AF' }}>→</span>
+                    </div>
+                </Link>
 
                 {/* Score Gauges Section */}
                 <div className='mood-card'>

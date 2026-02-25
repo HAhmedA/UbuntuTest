@@ -1,5 +1,5 @@
 -- Concept Scores Schema
--- Stores aggregated 0-100 scores for each data domain (sleep, srl, lms, screen_time, social_media)
+-- Stores aggregated 0-100 scores for each data domain (sleep, srl, lms, screen_time)
 -- Replaces detailed bullet-point judgments with single scores for LLM consumption
 
 -- =============================================================================
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.concept_scores (
   user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   
   -- Concept identification
-  concept_id varchar(30) NOT NULL CHECK (concept_id IN ('sleep', 'srl', 'lms', 'screen_time', 'social_media')),
+  concept_id varchar(30) NOT NULL CHECK (concept_id IN ('sleep', 'srl', 'lms', 'screen_time')),
   
   -- Score (0-100 scale)
   score numeric(5,2) NOT NULL CHECK (score >= 0 AND score <= 100),

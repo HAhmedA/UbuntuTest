@@ -174,8 +174,7 @@ router.get('/students/:studentId/scores', async (req, res) => {
             sleep: 'Sleep Quality',
             srl: 'Self-Regulated Learning',
             lms: 'LMS Engagement',
-            screen_time: 'Screen Time',
-            social_media: 'Social Media'
+            screen_time: 'Screen Time'
         }
 
         const scores = rows.map(row => ({

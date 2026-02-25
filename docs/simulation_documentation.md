@@ -24,14 +24,12 @@ graph TD
         Orch -- Trigger --> SRLSim[SRL Simulator]
         Orch -- Trigger --> ScreenSim[Screen Time Sim]
         Orch -- Trigger --> LMSSim[LMS Simulator]
-        
-        ScreenSim -- Dependency --> SocialSim[Social Media Sim]
     end
     
     subgraph "3. Scoring Aggregation"
         SleepSim -- Complete --> Scores[Compute All Scores]
         SRLSim -- Complete --> Scores
-        SocialSim -- Complete --> Scores
+        ScreenSim -- Complete --> Scores
         LMSSim -- Complete --> Scores
         Scores -- Updates --> DB
     end

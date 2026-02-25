@@ -1,0 +1,428 @@
+/* ── Sleep Slider Component ─────────────────────────────── */
+
+.sleep-slider-card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.sleep-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.sleep-slider-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sleep-slider-header h3 .sleep-icon {
+  font-size: 22px;
+}
+
+.sleep-slider-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #6B7280;
+}
+
+.sleep-already-logged {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: #ECFDF5;
+  color: #059669;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 20px;
+}
+
+/* ── Track container ─────────────────────────────────────── */
+
+.sleep-track-container {
+  position: relative;
+  margin: 28px 0 16px;
+  user-select: none;
+}
+
+.sleep-time-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-bottom: 8px;
+  padding: 0 2px;
+  font-weight: 500;
+}
+
+.sleep-time-labels span.sleep-label-midnight {
+  color: #6B7280;
+  font-weight: 700;
+}
+
+.sleep-track {
+  position: relative;
+  height: 40px;
+  background: #F3F4F6;
+  border-radius: 20px;
+  cursor: crosshair;
+  overflow: hidden;
+  border: 2px solid #E5E7EB;
+  transition: border-color 0.2s;
+}
+
+.sleep-track:hover {
+  border-color: #D1D5DB;
+}
+
+.sleep-track.sleep-track--readonly {
+  cursor: default;
+}
+
+.sleep-track.sleep-track--readonly:hover {
+  border-color: #E5E7EB;
+}
+
+/* Night zone (midnight area) subtle background */
+.sleep-night-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.06) 0%, rgba(15, 23, 42, 0.03) 100%);
+  pointer-events: none;
+  border-radius: 0;
+}
+
+/* ── Interval bars ───────────────────────────────────────── */
+
+.sleep-interval {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  background: linear-gradient(135deg, #0891B2 0%, #06B6D4 50%, #22D3EE 100%);
+  border-radius: 16px;
+  cursor: grab;
+  transition: box-shadow 0.15s, filter 0.15s;
+  z-index: 2;
+  min-width: 8px;
+}
+
+.sleep-interval:hover {
+  box-shadow: 0 2px 12px rgba(8, 145, 178, 0.4);
+  filter: brightness(1.05);
+}
+
+.sleep-interval.sleep-interval--dragging {
+  cursor: grabbing;
+  box-shadow: 0 4px 16px rgba(8, 145, 178, 0.5);
+  filter: brightness(1.1);
+  z-index: 3;
+}
+
+.sleep-interval-time {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.sleep-interval:hover .sleep-interval-time,
+.sleep-interval.sleep-interval--dragging .sleep-interval-time {
+  opacity: 1;
+}
+
+/* ── Drag handles ────────────────────────────────────────── */
+
+.sleep-handle {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  background: white;
+  border: 2.5px solid #0891B2;
+  border-radius: 50%;
+  cursor: ew-resize;
+  z-index: 4;
+  transition: transform 0.12s, box-shadow 0.12s, background-color 0.12s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.sleep-handle:hover {
+  transform: translate(-50%, -50%) scale(1.2);
+  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.4);
+  background: #E0F7FA;
+}
+
+.sleep-handle.sleep-handle--dragging {
+  transform: translate(-50%, -50%) scale(1.3);
+  box-shadow: 0 3px 12px rgba(8, 145, 178, 0.5);
+  background: #B2EBF2;
+}
+
+.sleep-handle--start {
+  left: 0;
+}
+
+.sleep-handle--end {
+  left: 100%;
+}
+
+/* Remove button on interval */
+.sleep-interval-remove {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  background: #EF4444;
+  border: 2px solid white;
+  border-radius: 50%;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sleep-interval:hover .sleep-interval-remove {
+  opacity: 1;
+}
+
+.sleep-interval-remove:hover {
+  transform: scale(1.15);
+  background: #DC2626;
+}
+
+/* ── Tooltip (hover time position) ───────────────────────── */
+
+.sleep-track-tooltip {
+  position: absolute;
+  top: -28px;
+  transform: translateX(-50%);
+  background: #1F2937;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.sleep-track-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #1F2937;
+}
+
+/* ── Controls row ────────────────────────────────────────── */
+
+.sleep-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sleep-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #F0FDFA;
+  color: #0891B2;
+  border: 1.5px solid #99F6E4;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+
+.sleep-add-btn:hover {
+  background: #CCFBF1;
+  border-color: #5EEAD4;
+  transform: translateY(-1px);
+}
+
+.sleep-add-btn:active {
+  transform: translateY(0);
+}
+
+.sleep-summary {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.sleep-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sleep-summary-item .sleep-summary-label {
+  color: #9CA3AF;
+  font-weight: 500;
+}
+
+.sleep-summary-item .sleep-summary-value {
+  font-weight: 700;
+  color: #111827;
+}
+
+/* ── Submit button ───────────────────────────────────────── */
+
+.sleep-submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 16px;
+  gap: 12px;
+}
+
+.sleep-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 28px;
+  background: #0891B2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 2px 4px rgba(8, 145, 178, 0.2);
+}
+
+.sleep-submit-btn:hover:not(:disabled) {
+  background: #06B6D4;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(8, 145, 178, 0.3);
+}
+
+.sleep-submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.sleep-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sleep-submit-msg {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sleep-submit-msg.sleep-msg-success {
+  color: #059669;
+}
+
+.sleep-submit-msg.sleep-msg-error {
+  color: #DC2626;
+}
+
+/* ── Read-only summary (after submission) ────────────────── */
+
+.sleep-readonly-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.sleep-readonly-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 20px;
+  background: #F0FDFA;
+  border-radius: 10px;
+  border: 1px solid #CCFBF1;
+  min-width: 120px;
+}
+
+.sleep-readonly-stat .stat-label {
+  font-size: 11px;
+  color: #6B7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sleep-readonly-stat .stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0891B2;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .sleep-slider-card {
+    padding: 20px;
+  }
+
+  .sleep-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sleep-summary {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .sleep-submit-row {
+    justify-content: stretch;
+  }
+
+  .sleep-submit-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .sleep-readonly-summary {
+    flex-direction: column;
+  }
+}

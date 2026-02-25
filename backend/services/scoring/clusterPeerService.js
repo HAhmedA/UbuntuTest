@@ -1,11 +1,11 @@
 // Cluster Peer Service
-// Gaussian Mixture Model (GMM) based clustering for peer comparison
-// Replaces Z-score approach with behavioral clustering + percentile-based scoring
+// Parsimonious Gaussian Mixture of Experts (PGMoE) for peer comparison
+// Uses feature-dependent gating + parsimonious covariance models
 //
 // Flow:
 //   1. Gather all users' raw metrics per concept
-//   2. Normalize features (min-max scaling)
-//   3. Fit GMM with K=3 components via EM algorithm
+//   2. Winsorize at P5/P95, scale to [0,1], then center-normalize (zero mean, unit var)
+//   3. Fit PGMoE: test all (K, covType) combos, select best via BIC+AIC+entropy
 //   4. Assign each user to their most-likely cluster
 //   5. Compute per-cluster percentiles (P5, P50, P95) on composite score
 //   6. Map user's score to 0-100 within their cluster's P5-P95 range
@@ -17,39 +17,249 @@ import logger from '../../utils/logger.js';
 import { computeStats } from './peerStatsService.js';
 
 // =============================================================================
-// GAUSSIAN MIXTURE MODEL (EM ALGORITHM)
+// PARSIMONIOUS GAUSSIAN MIXTURE OF EXPERTS (PGMoE)
 // =============================================================================
 
 /**
- * Compute the probability density of a point under a multivariate Gaussian
- * with diagonal covariance (independent dimensions).
+ * Center-normalize a feature matrix: zero mean, unit variance per dimension.
+ * Returns { centered, means, stds } so we can un-normalize if needed.
  */
-function gaussianPDF(x, mean, variance) {
-    const d = x.length;
-    let logP = -0.5 * d * Math.log(2 * Math.PI);
-    for (let i = 0; i < d; i++) {
-        const v = Math.max(variance[i], 1e-6); // floor to avoid division by zero
-        logP -= 0.5 * Math.log(v);
-        logP -= 0.5 * ((x[i] - mean[i]) ** 2) / v;
+function centerNormalize(data) {
+    const n = data.length;
+    const d = data[0].length;
+    const means = new Array(d).fill(0);
+    const stds = new Array(d).fill(0);
+
+    // Compute means
+    for (const row of data) {
+        for (let j = 0; j < d; j++) means[j] += row[j] / n;
     }
-    return Math.exp(logP);
+    // Compute standard deviations
+    for (const row of data) {
+        for (let j = 0; j < d; j++) stds[j] += (row[j] - means[j]) ** 2 / n;
+    }
+    for (let j = 0; j < d; j++) stds[j] = Math.sqrt(Math.max(stds[j], 1e-10));
+
+    // Center and scale
+    const centered = data.map(row =>
+        row.map((v, j) => (v - means[j]) / stds[j])
+    );
+
+    return { centered, means, stds };
 }
 
 /**
- * Initialize GMM parameters using K-Means++ seeding for centroids,
- * uniform weights, and identity-like variances.
+ * Gaussian PDF (log-domain for numerical stability).
+ * Supports both per-component diagonal variance and shared variance.
  */
-function initializeGMM(data, k) {
+function gaussianLogPDF(x, mean, variance) {
+    const d = x.length;
+    let logP = -0.5 * d * Math.log(2 * Math.PI);
+    for (let i = 0; i < d; i++) {
+        const v = Math.max(variance[i], 1e-6);
+        logP -= 0.5 * Math.log(v);
+        logP -= 0.5 * ((x[i] - mean[i]) ** 2) / v;
+    }
+    return logP;
+}
+
+function gaussianPDF(x, mean, variance) {
+    return Math.exp(gaussianLogPDF(x, mean, variance));
+}
+
+/**
+ * Softmax gating network: g_k(x) = softmax(W * x + b)
+ * First class is reference (W[0]=0, b[0]=0) for identifiability.
+ *
+ * @param {number[]} x - Feature vector (D)
+ * @param {number[][]} W - Weight matrix (K x D), W[0] is zeros
+ * @param {number[]} b - Bias vector (K), b[0] is 0
+ * @returns {number[]} - Gating probabilities (K), sums to 1
+ */
+function gatingProbs(x, W, b) {
+    const k = W.length;
+    const logits = new Array(k);
+    let maxLogit = -Infinity;
+
+    for (let c = 0; c < k; c++) {
+        let z = b[c];
+        for (let j = 0; j < x.length; j++) z += W[c][j] * x[j];
+        logits[c] = z;
+        if (z > maxLogit) maxLogit = z;
+    }
+
+    // Numerically stable softmax
+    let sumExp = 0;
+    const probs = new Array(k);
+    for (let c = 0; c < k; c++) {
+        probs[c] = Math.exp(logits[c] - maxLogit);
+        sumExp += probs[c];
+    }
+    for (let c = 0; c < k; c++) probs[c] /= sumExp;
+
+    return probs;
+}
+
+/**
+ * Update gating parameters (W, b) via IRLS (one Newton-Raphson step per iteration).
+ * Treats responsibilities as soft labels for multinomial logistic regression.
+ * Component 0 is reference class (W[0]=0, b[0]=0).
+ *
+ * @param {number[][]} data - N x D feature matrix
+ * @param {number[][]} responsibilities - N x K responsibilities
+ * @param {number[][]} W - Current K x D weight matrix
+ * @param {number[]} b - Current K bias vector
+ * @param {number} learningRate - Step size (default 0.1 for stability)
+ * @param {number} nSteps - Number of gradient steps per M-step
+ */
+function updateGating(data, responsibilities, W, b, learningRate = 0.1, nSteps = 3) {
     const n = data.length;
     const d = data[0].length;
+    const k = W.length;
 
-    // K-Means++ initialization for means
+    for (let step = 0; step < nSteps; step++) {
+        // Compute gradients for each non-reference component (c >= 1)
+        for (let c = 1; c < k; c++) {
+            const gradW = new Array(d).fill(0);
+            let gradB = 0;
+
+            for (let i = 0; i < n; i++) {
+                const g = gatingProbs(data[i], W, b);
+                const diff = responsibilities[i][c] - g[c];
+                for (let j = 0; j < d; j++) {
+                    gradW[j] += diff * data[i][j];
+                }
+                gradB += diff;
+            }
+
+            // Gradient ascent with L2 regularization (lambda = 0.01)
+            const lambda = 0.01;
+            for (let j = 0; j < d; j++) {
+                W[c][j] += learningRate * (gradW[j] / n - lambda * W[c][j]);
+            }
+            b[c] += learningRate * (gradB / n);
+        }
+    }
+}
+
+/**
+ * Compute covariance under different parsimonious constraints.
+ *
+ * @param {number[][]} data - N x D
+ * @param {number[][]} responsibilities - N x K
+ * @param {number[][]} means - K x D means
+ * @param {number} k - Number of components
+ * @param {string} covType - 'EII' | 'VII' | 'EEI' | 'VVI'
+ * @returns {number[][][]} - K arrays, each D-length (diagonal variances)
+ */
+function computeParsimonousCovariance(data, responsibilities, means, k, covType) {
+    const n = data.length;
+    const d = means[0].length;
+    const FLOOR = 1e-6;
+
+    if (covType === 'EII') {
+        // Equal spherical: single σ² shared across all clusters & dimensions
+        let totalVar = 0;
+        let totalWeight = 0;
+        for (let c = 0; c < k; c++) {
+            for (let i = 0; i < n; i++) {
+                const r = responsibilities[i][c];
+                for (let j = 0; j < d; j++) {
+                    totalVar += r * (data[i][j] - means[c][j]) ** 2;
+                }
+                totalWeight += r;
+            }
+        }
+        const sigma2 = Math.max(totalVar / (totalWeight * d), FLOOR);
+        return Array.from({ length: k }, () => new Array(d).fill(sigma2));
+    }
+
+    if (covType === 'VII') {
+        // Varying spherical: σ_k² per cluster, shared across dimensions
+        const variances = [];
+        for (let c = 0; c < k; c++) {
+            let clusterVar = 0;
+            let Nc = 0;
+            for (let i = 0; i < n; i++) {
+                const r = responsibilities[i][c];
+                for (let j = 0; j < d; j++) {
+                    clusterVar += r * (data[i][j] - means[c][j]) ** 2;
+                }
+                Nc += r;
+            }
+            const sigma2 = Math.max(clusterVar / (Math.max(Nc, FLOOR) * d), FLOOR);
+            variances.push(new Array(d).fill(sigma2));
+        }
+        return variances;
+    }
+
+    if (covType === 'EEI') {
+        // Equal diagonal: diag(Σ) shared across clusters
+        const sharedVar = new Array(d).fill(0);
+        let totalWeight = 0;
+        for (let c = 0; c < k; c++) {
+            for (let i = 0; i < n; i++) {
+                const r = responsibilities[i][c];
+                for (let j = 0; j < d; j++) {
+                    sharedVar[j] += r * (data[i][j] - means[c][j]) ** 2;
+                }
+                totalWeight += r;
+            }
+        }
+        for (let j = 0; j < d; j++) sharedVar[j] = Math.max(sharedVar[j] / totalWeight, FLOOR);
+        return Array.from({ length: k }, () => [...sharedVar]);
+    }
+
+    // VVI: varying diagonal (default, most flexible)
+    const variances = [];
+    for (let c = 0; c < k; c++) {
+        const v = new Array(d).fill(0);
+        let Nc = 0;
+        for (let i = 0; i < n; i++) {
+            const r = responsibilities[i][c];
+            for (let j = 0; j < d; j++) {
+                v[j] += r * (data[i][j] - means[c][j]) ** 2;
+            }
+            Nc += r;
+        }
+        for (let j = 0; j < d; j++) v[j] = Math.max(v[j] / Math.max(Nc, FLOOR), FLOOR);
+        variances.push(v);
+    }
+    return variances;
+}
+
+/**
+ * Count free parameters for a given (K, D, covType) configuration.
+ * Includes gating params: (K-1) * (D+1) for softmax regression.
+ */
+function countParams(k, d, covType) {
+    // Gating: (K-1) weight vectors of size D, plus (K-1) biases
+    const gatingParams = (k - 1) * (d + 1);
+    // Means: K * D
+    const meanParams = k * d;
+    // Covariance depends on type
+    let covParams;
+    switch (covType) {
+        case 'EII': covParams = 1; break;          // One shared σ²
+        case 'VII': covParams = k; break;           // σ_k² per cluster
+        case 'EEI': covParams = d; break;           // Shared diagonal
+        case 'VVI': covParams = k * d; break;       // Per-cluster diagonal
+        default: covParams = k * d;
+    }
+    return gatingParams + meanParams + covParams;
+}
+
+/**
+ * K-Means++ initialization for centroids.
+ */
+function kMeansPPInit(data, k) {
+    const n = data.length;
+    const d = data[0].length;
     const means = [];
-    // Pick first centroid randomly
+
     means.push([...data[Math.floor(Math.random() * n)]]);
 
     for (let c = 1; c < k; c++) {
-        // Compute squared distances to nearest existing centroid
         const dists = data.map(point => {
             let minDist = Infinity;
             for (const m of means) {
@@ -60,7 +270,6 @@ function initializeGMM(data, k) {
             return minDist;
         });
         const totalDist = dists.reduce((s, v) => s + v, 0);
-        // Weighted random selection
         let r = Math.random() * totalDist;
         let idx = 0;
         for (let i = 0; i < n; i++) {
@@ -70,43 +279,25 @@ function initializeGMM(data, k) {
         means.push([...data[idx]]);
     }
 
-    // Initialize variances as global variance per dimension
-    const globalVariance = new Array(d).fill(0);
-    const globalMean = new Array(d).fill(0);
-    for (const point of data) {
-        for (let i = 0; i < d; i++) globalMean[i] += point[i] / n;
-    }
-    for (const point of data) {
-        for (let i = 0; i < d; i++) globalVariance[i] += (point[i] - globalMean[i]) ** 2 / n;
-    }
-
-    const variances = [];
-    for (let c = 0; c < k; c++) {
-        variances.push(globalVariance.map(v => Math.max(v, 1e-6)));
-    }
-
-    // Uniform mixing weights
-    const weights = new Array(k).fill(1 / k);
-
-    return { means, variances, weights };
+    return means;
 }
 
 /**
- * Fit a Gaussian Mixture Model using the EM algorithm.
+ * Fit a Parsimonious Gaussian Mixture of Experts using EM.
  *
- * @param {number[][]} data - Array of feature vectors (N x D)
+ * @param {number[][]} data - N x D feature matrix (should be center-normalized)
  * @param {number} k - Number of components
+ * @param {string} covType - 'EII' | 'VII' | 'EEI' | 'VVI'
  * @param {number} maxIter - Maximum EM iterations
  * @param {number} tol - Log-likelihood convergence tolerance
- * @returns {{ means, variances, weights, assignments, responsibilities }}
+ * @returns {{ means, variances, W, b, assignments, responsibilities, logLikelihood, covType }}
  */
-function fitGMM(data, k, maxIter = 50, tol = 1e-4) {
+function fitPGMoE(data, k, covType = 'VVI', maxIter = 50, tol = 1e-4) {
     const n = data.length;
     const d = data[0].length;
 
     // Edge case: fewer data points than clusters
     if (n <= k) {
-        // Assign each point to its own cluster, pad remaining
         const assignments = data.map((_, i) => Math.min(i, k - 1));
         const responsibilities = data.map((_, i) => {
             const row = new Array(k).fill(0);
@@ -114,60 +305,85 @@ function fitGMM(data, k, maxIter = 50, tol = 1e-4) {
             return row;
         });
         const means = [];
-        const variances = [];
-        const weights = [];
         for (let c = 0; c < k; c++) {
             const pts = data.filter((_, i) => assignments[i] === c);
-            if (pts.length > 0) {
-                means.push(pts[0].slice());
-            } else {
-                means.push(new Array(d).fill(0));
-            }
-            variances.push(new Array(d).fill(1));
-            weights.push(pts.length / n);
+            means.push(pts.length > 0 ? pts[0].slice() : new Array(d).fill(0));
         }
-        return { means, variances, weights, assignments, responsibilities };
+        const variances = Array.from({ length: k }, () => new Array(d).fill(1));
+        const W = Array.from({ length: k }, () => new Array(d).fill(0));
+        const b = new Array(k).fill(0);
+        return { means, variances, W, b, assignments, responsibilities, logLikelihood: -Infinity, covType };
     }
 
-    let { means, variances, weights } = initializeGMM(data, k);
-    let prevLogLikelihood = -Infinity;
-    let responsibilities = Array.from({ length: n }, () => new Array(k).fill(0));
+    // Initialize means via K-Means++
+    let means = kMeansPPInit(data, k);
+
+    // Initialize gating: zero weights (uniform gating to start)
+    let W = Array.from({ length: k }, () => new Array(d).fill(0));
+    let b = new Array(k).fill(0);
+
+    // Initialize responsibilities uniformly, then compute initial covariance
+    let responsibilities = Array.from({ length: n }, () => new Array(k).fill(1 / k));
+
+    // Initial hard assignment to nearest mean for better covariance init
+    for (let i = 0; i < n; i++) {
+        let bestC = 0;
+        let bestDist = Infinity;
+        for (let c = 0; c < k; c++) {
+            let dist = 0;
+            for (let j = 0; j < d; j++) dist += (data[i][j] - means[c][j]) ** 2;
+            if (dist < bestDist) { bestDist = dist; bestC = c; }
+        }
+        responsibilities[i] = new Array(k).fill(0);
+        responsibilities[i][bestC] = 1;
+    }
+
+    let variances = computeParsimonousCovariance(data, responsibilities, means, k, covType);
+
+    // Reset to soft responsibilities
+    responsibilities = Array.from({ length: n }, () => new Array(k).fill(1 / k));
+
+    let prevLogL = -Infinity;
+    let logLikelihood = -Infinity;
 
     for (let iter = 0; iter < maxIter; iter++) {
         // ===== E-Step: compute responsibilities =====
-        let logLikelihood = 0;
+        logLikelihood = 0;
 
         for (let i = 0; i < n; i++) {
+            const gate = gatingProbs(data[i], W, b);
             let totalP = 0;
             for (let c = 0; c < k; c++) {
-                responsibilities[i][c] = weights[c] * gaussianPDF(data[i], means[c], variances[c]);
+                const gp = gaussianPDF(data[i], means[c], variances[c]);
+                responsibilities[i][c] = gate[c] * gp;
                 totalP += responsibilities[i][c];
             }
-            // Normalize
             if (totalP > 0) {
                 for (let c = 0; c < k; c++) responsibilities[i][c] /= totalP;
                 logLikelihood += Math.log(totalP);
             } else {
-                // Degenerate case: assign uniformly
                 for (let c = 0; c < k; c++) responsibilities[i][c] = 1 / k;
             }
         }
 
         // Check convergence
-        if (Math.abs(logLikelihood - prevLogLikelihood) < tol) {
-            logger.debug(`GMM converged at iteration ${iter}, logL=${logLikelihood.toFixed(4)}`);
+        if (Math.abs(logLikelihood - prevLogL) < tol) {
+            logger.debug(`PGMoE(${covType},K=${k}) converged at iter ${iter}, logL=${logLikelihood.toFixed(4)}`);
             break;
         }
-        prevLogLikelihood = logLikelihood;
+        prevLogL = logLikelihood;
 
-        // ===== M-Step: update parameters =====
+        // ===== M-Step =====
+
+        // 1. Update gating network (W, b) via gradient ascent
+        updateGating(data, responsibilities, W, b);
+
+        // 2. Update means
         for (let c = 0; c < k; c++) {
             let Nc = 0;
             for (let i = 0; i < n; i++) Nc += responsibilities[i][c];
+            if (Nc < 1e-10) continue;
 
-            if (Nc < 1e-10) continue; // Skip empty component
-
-            // Update mean
             const newMean = new Array(d).fill(0);
             for (let i = 0; i < n; i++) {
                 for (let j = 0; j < d; j++) {
@@ -175,24 +391,14 @@ function fitGMM(data, k, maxIter = 50, tol = 1e-4) {
                 }
             }
             for (let j = 0; j < d; j++) newMean[j] /= Nc;
-
-            // Update variance (diagonal)
-            const newVar = new Array(d).fill(0);
-            for (let i = 0; i < n; i++) {
-                for (let j = 0; j < d; j++) {
-                    newVar[j] += responsibilities[i][c] * (data[i][j] - newMean[j]) ** 2;
-                }
-            }
-            for (let j = 0; j < d; j++) newVar[j] = Math.max(newVar[j] / Nc, 1e-6);
-
-            // Update weight
             means[c] = newMean;
-            variances[c] = newVar;
-            weights[c] = Nc / n;
         }
+
+        // 3. Update covariance with parsimony constraints
+        variances = computeParsimonousCovariance(data, responsibilities, means, k, covType);
     }
 
-    // Hard assignments via argmax of responsibilities
+    // Hard assignments via argmax
     const assignments = responsibilities.map(row => {
         let maxIdx = 0;
         for (let c = 1; c < k; c++) {
@@ -201,68 +407,112 @@ function fitGMM(data, k, maxIter = 50, tol = 1e-4) {
         return maxIdx;
     });
 
-    return { means, variances, weights, assignments, responsibilities };
+    return { means, variances, W, b, assignments, responsibilities, logLikelihood, covType };
 }
 
 /**
- * Select optimal number of clusters using BIC (Bayesian Information Criterion).
- * Tests K from kMin to kMax and returns the K with the lowest BIC.
+ * Compute classification entropy of responsibilities.
+ * Returns normalized value in [0, 1] where 1 = perfectly crisp, 0 = max ambiguity.
+ */
+function computeNormalizedEntropy(responsibilities, n, k) {
+    if (k <= 1 || n === 0) return 1;
+    let entropy = 0;
+    for (let i = 0; i < n; i++) {
+        for (let c = 0; c < k; c++) {
+            const r = Math.max(responsibilities[i][c], 1e-300);
+            entropy -= r * Math.log(r);
+        }
+    }
+    // Max possible entropy = n * log(k) (uniform assignments)
+    const maxEntropy = n * Math.log(k);
+    // Normalized: 1 = crisp, 0 = ambiguous
+    return maxEntropy > 0 ? 1 - (entropy / maxEntropy) : 1;
+}
+
+/**
+ * Select optimal (K, covType) using composite criterion:
+ * rank-based combination of BIC (40%), AIC (30%), and normalized entropy (30%).
  *
- * BIC = -2·logL + numParams·ln(n)
- * Lower BIC = better fit with fewer parameters (penalizes over-fitting).
- *
- * @param {number[][]} data - Feature matrix (N x D)
+ * @param {number[][]} data - Center-normalized feature matrix (N x D)
  * @param {number} kMin - Minimum K to test (default 2)
  * @param {number} kMax - Maximum K to test (default 6)
- * @returns {number} - Optimal K
+ * @returns {{ k, covType, model }} - Best K, covariance type, and fitted model
  */
-function selectOptimalK(data, kMin = 2, kMax = 6) {
+function selectOptimalModel(data, kMin = 2, kMax = 6) {
     const n = data.length;
     const d = data[0].length;
+    const COV_TYPES = ['EII', 'VII', 'EEI', 'VVI'];
 
-    // Can't have more clusters than data points
     kMax = Math.min(kMax, n);
     kMin = Math.min(kMin, kMax);
 
-    let bestK = kMin;
-    let bestBIC = Infinity;
+    const candidates = [];
 
-    for (let k = kMin; k <= kMax; k++) {
-        const gmm = fitGMM(data, k);
+    for (const covType of COV_TYPES) {
+        for (let k = kMin; k <= kMax; k++) {
+            const model = fitPGMoE(data, k, covType);
+            const logL = model.logLikelihood;
+            const p = countParams(k, d, covType);
 
-        // Compute log-likelihood
-        let logL = 0;
-        for (let i = 0; i < n; i++) {
-            let p = 0;
-            for (let c = 0; c < k; c++) {
-                p += gmm.weights[c] * gaussianPDF(data[i], gmm.means[c], gmm.variances[c]);
-            }
-            logL += Math.log(Math.max(p, 1e-300));
-        }
+            const bic = -2 * logL + p * Math.log(n);
+            const aic = -2 * logL + 2 * p;
+            const entropy = computeNormalizedEntropy(model.responsibilities, n, k);
 
-        // Diagonal GMM params per component: d means + d variances + 1 weight = 2d + 1
-        // Total params: k * (2d + 1) - 1 (weights sum to 1 → one is redundant)
-        const numParams = k * (2 * d + 1) - 1;
-        const bic = -2 * logL + numParams * Math.log(n);
-
-        logger.debug(`BIC for K=${k}: ${bic.toFixed(2)} (logL=${logL.toFixed(2)}, params=${numParams})`);
-
-        if (bic < bestBIC) {
-            bestBIC = bic;
-            bestK = k;
+            candidates.push({ k, covType, model, bic, aic, entropy, logL, p });
         }
     }
 
-    logger.info(`Optimal K selected: ${bestK} (BIC=${bestBIC.toFixed(2)})`);
-    return bestK;
+    if (candidates.length === 0) {
+        // Fallback
+        const model = fitPGMoE(data, kMin, 'VVI');
+        return { k: kMin, covType: 'VVI', model };
+    }
+
+    // Rank each candidate on each criterion (lower rank = better)
+    // BIC: lower is better → sort ascending
+    const bicSorted = [...candidates].sort((a, b) => a.bic - b.bic);
+    // AIC: lower is better → sort ascending
+    const aicSorted = [...candidates].sort((a, b) => a.aic - b.aic);
+    // Entropy: higher is better → sort descending
+    const entSorted = [...candidates].sort((a, b) => b.entropy - a.entropy);
+
+    const bicRank = new Map();
+    const aicRank = new Map();
+    const entRank = new Map();
+    bicSorted.forEach((c, i) => bicRank.set(c, i));
+    aicSorted.forEach((c, i) => aicRank.set(c, i));
+    entSorted.forEach((c, i) => entRank.set(c, i));
+
+    // Composite score: weighted sum of ranks
+    let bestCandidate = candidates[0];
+    let bestScore = Infinity;
+
+    for (const c of candidates) {
+        const score = 0.4 * bicRank.get(c) + 0.3 * aicRank.get(c) + 0.3 * entRank.get(c);
+
+        logger.debug(`  K=${c.k} ${c.covType}: BIC=${c.bic.toFixed(1)}, AIC=${c.aic.toFixed(1)}, ` +
+            `entropy=${c.entropy.toFixed(3)}, composite=${score.toFixed(2)}`);
+
+        if (score < bestScore) {
+            bestScore = score;
+            bestCandidate = c;
+        }
+    }
+
+    logger.info(`Selected: K=${bestCandidate.k}, cov=${bestCandidate.covType}, ` +
+        `BIC=${bestCandidate.bic.toFixed(1)}, AIC=${bestCandidate.aic.toFixed(1)}, ` +
+        `entropy=${bestCandidate.entropy.toFixed(3)}, compositeRank=${bestScore.toFixed(2)}`);
+
+    return {
+        k: bestCandidate.k,
+        covType: bestCandidate.covType,
+        model: bestCandidate.model
+    };
 }
 
 /**
  * Generate human-readable cluster labels for any K.
  * Labels are ordered from worst (index 0) to best (index K-1).
- *
- * @param {number} k - Number of clusters
- * @returns {string[]} - Array of k labels
  */
 function generateClusterLabels(k) {
     if (k === 1) return ['Your peer group'];
@@ -275,10 +525,9 @@ function generateClusterLabels(k) {
         'Students with balanced patterns',
         'Students with strong habits'
     ];
-    // For k >= 4, interpolate labels
     const labels = [];
     for (let i = 0; i < k; i++) {
-        const fraction = i / (k - 1); // 0 to 1
+        const fraction = i / (k - 1);
         if (fraction < 0.25) labels.push('Students building stronger habits');
         else if (fraction > 0.75) labels.push('Students with strong habits');
         else labels.push(`Students with balanced patterns (group ${i})`);
@@ -301,7 +550,6 @@ async function getAllUserMetrics(conceptId, days = 7) {
         case 'lms': return getLMSMetrics(days);
         case 'sleep': return getSleepMetrics(days);
         case 'screen_time': return getScreenTimeMetrics(days);
-        case 'social_media': return getSocialMediaMetrics(days);
         case 'srl': return getSRLMetrics();
         default:
             logger.warn(`clusterPeerService: unknown concept ${conceptId}`);
@@ -384,27 +632,6 @@ async function getScreenTimeMetrics(days) {
     return metrics;
 }
 
-async function getSocialMediaMetrics(days) {
-    const { rows } = await pool.query(`
-        SELECT user_id,
-               AVG(total_social_minutes) as avg_social_minutes,
-               AVG(number_of_social_sessions) as avg_checks,
-               AVG(average_session_length) as avg_session_length
-        FROM public.social_media_sessions
-        WHERE session_date >= CURRENT_DATE - INTERVAL '${days} days'
-        GROUP BY user_id
-    `);
-    const metrics = {};
-    for (const r of rows) {
-        metrics[r.user_id] = {
-            social_minutes: parseFloat(r.avg_social_minutes) || 0,
-            number_of_checks: parseFloat(r.avg_checks) || 0,
-            avg_session_length: parseFloat(r.avg_session_length) || 0
-        };
-    }
-    return metrics;
-}
-
 async function getSRLMetrics() {
     const { rows } = await pool.query(`
         SELECT user_id, concept_key, avg_score, is_inverted
@@ -442,12 +669,7 @@ const DIMENSION_DEFS = {
     screen_time: {
         volume: { metric: 'screen_minutes', inverted: true },
         distribution: { metric: 'longest_session', inverted: true },
-        late_night: { metric: 'late_night', inverted: true }
-    },
-    social_media: {
-        volume: { metric: 'social_minutes', inverted: true },
-        frequency: { metric: 'number_of_checks', inverted: true },
-        session_style: { metric: 'avg_session_length', inverted: true }
+        pre_sleep: { metric: 'late_night', inverted: true }
     }
 };
 
@@ -519,7 +741,7 @@ function computeCompositeScore(userMetrics, allMetrics, dims) {
  * Compute cluster-based peer comparison scores for a user.
  *
  * @param {Object} dbPool - Database pool (unused, we use imported pool)
- * @param {string} conceptId - 'lms', 'sleep', 'screen_time', 'social_media', 'srl'
+ * @param {string} conceptId - 'lms', 'sleep', 'screen_time', 'srl'
  * @param {string} userId - Target user ID
  * @param {number} days - Look-back window (default 7)
  * @returns {Object} { clusterLabel, percentileScore, dialMin, dialCenter, dialMax, domains: [...] }
@@ -570,16 +792,18 @@ async function computeClusterScores(dbPool, conceptId, userId, days = 7) {
         });
     });
 
-    // Select optimal K via BIC (tests K=2 to K=6), then fit final GMM
-    const k = selectOptimalK(featureMatrix, 2, 6);
-    const gmm = fitGMM(featureMatrix, k);
-    logger.info(`${conceptId}: using K=${k} clusters for ${userIds.length} users`);
+    // Center-normalize for PGMoE (after Winsorize+scale, before model fitting)
+    const { centered } = centerNormalize(featureMatrix);
+
+    // Select optimal (K, covType) via composite BIC+AIC+entropy criterion
+    const { k, covType, model } = selectOptimalModel(centered, 2, 4);
+    logger.info(`${conceptId}: K=${k}, cov=${covType} for ${userIds.length} users`);
 
     // Compute composite scores for each user
     const composites = userIds.map((uid, idx) => ({
         userId: uid,
         composite: computeCompositeScore(allMetrics[uid], allMetrics, dims).composite,
-        cluster: gmm.assignments[idx]
+        cluster: model.assignments[idx]
     }));
 
     // Order clusters by mean composite score (low→high)
@@ -601,7 +825,7 @@ async function computeClusterScores(dbPool, conceptId, userId, days = 7) {
 
     // Find the user's cluster and percentile position
     const userIdx = userIds.indexOf(userId);
-    const userOrigCluster = gmm.assignments[userIdx];
+    const userOrigCluster = model.assignments[userIdx];
     const userOrderedCluster = clusterRemap[userOrigCluster];
     const userComposite = composites[userIdx].composite;
 
@@ -620,7 +844,7 @@ async function computeClusterScores(dbPool, conceptId, userId, days = 7) {
     const clusterLabel = labels[Math.min(userOrderedCluster, labels.length - 1)];
 
     // Store cluster definitions and assignment in DB
-    await storeClusterResults(conceptId, composites, clusterRemap, clusterMeans, k, gmm);
+    await storeClusterResults(conceptId, composites, clusterRemap, clusterMeans, k, model);
     await storeUserAssignment(userId, conceptId, userOrderedCluster, clusterLabel, userPercentile);
 
     // Also compute per-domain results for the breakdown
@@ -678,9 +902,11 @@ async function computeSRLClusterScores(allMetrics, userId) {
         });
     });
 
-    const k = selectOptimalK(featureMatrix, 2, 6);
-    const gmm = fitGMM(featureMatrix, k);
-    logger.info(`srl: using K=${k} clusters for ${userIds.length} users`);
+    // Center-normalize for PGMoE
+    const { centered: centeredSRL } = centerNormalize(featureMatrix);
+
+    const { k, covType, model } = selectOptimalModel(centeredSRL, 2, 4);
+    logger.info(`srl: K=${k}, cov=${covType} for ${userIds.length} users`);
 
     // Compute composite scores
     const composites = userIds.map((uid, idx) => {
@@ -694,7 +920,7 @@ async function computeSRLClusterScores(allMetrics, userId) {
         return {
             userId: uid,
             composite: scores.reduce((a, b) => a + b, 0) / scores.length,
-            cluster: gmm.assignments[idx]
+            cluster: model.assignments[idx]
         };
     });
 
@@ -713,7 +939,7 @@ async function computeSRLClusterScores(allMetrics, userId) {
     clusterMeans.forEach((cm, orderedIdx) => { clusterRemap[cm.cluster] = orderedIdx; });
 
     const userIdx = userIds.indexOf(userId);
-    const userOrigCluster = gmm.assignments[userIdx];
+    const userOrigCluster = model.assignments[userIdx];
     const userOrderedCluster = clusterRemap[userOrigCluster];
     const userComposite = composites[userIdx].composite;
 
@@ -730,7 +956,7 @@ async function computeSRLClusterScores(allMetrics, userId) {
     const srlLabels = generateClusterLabels(k);
     const clusterLabel = srlLabels[Math.min(userOrderedCluster, srlLabels.length - 1)];
 
-    await storeClusterResults('srl', composites, clusterRemap, clusterMeans, k, gmm);
+    await storeClusterResults('srl', composites, clusterRemap, clusterMeans, k, model);
     await storeUserAssignment(userId, 'srl', userOrderedCluster, clusterLabel, userPercentile);
 
     // Per-domain results for SRL
@@ -766,7 +992,7 @@ async function computeSRLClusterScores(allMetrics, userId) {
 // DB STORAGE
 // =============================================================================
 
-async function storeClusterResults(conceptId, composites, clusterRemap, clusterMeans, k, gmm) {
+async function storeClusterResults(conceptId, composites, clusterRemap, clusterMeans, k, model) {
     try {
         // Clean up stale clusters from previous runs with higher K
         await pool.query(
@@ -797,7 +1023,7 @@ async function storeClusterResults(conceptId, composites, clusterRemap, clusterM
                    p95 = EXCLUDED.p95,
                    user_count = EXCLUDED.user_count,
                    computed_at = NOW()`,
-                [conceptId, orderedIdx, label, JSON.stringify(gmm.means[origC] || []),
+                [conceptId, orderedIdx, label, JSON.stringify(model.means[origC] || []),
                     p5Val, p50Val, p95Val, members.length]
             );
         }
@@ -830,9 +1056,10 @@ async function storeUserAssignment(userId, conceptId, clusterIndex, clusterLabel
 
 export {
     computeClusterScores,
-    fitGMM,
-    selectOptimalK,
+    fitPGMoE,
+    selectOptimalModel,
     generateClusterLabels,
+    centerNormalize,
     percentile,
     mapToRange,
     computeCompositeScore,

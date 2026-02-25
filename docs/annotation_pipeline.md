@@ -79,29 +79,11 @@ Simulator ──► DB Session Tables ──► peerStatsService (getAllUserMetr
 |---|---|---|---|---|
 | `volume` | `screen_minutes` | `AVG(total_screen_minutes)` | ✅ | Less screen time = better |
 | `distribution` | `longest_session` | `AVG(longest_continuous_session)` | ✅ | Shorter sessions = better |
-| `late_night` | `late_night` | `AVG(late_night_screen_minutes)` | ✅ | Less late-night use = better |
+| `pre_sleep` | `late_night` | `AVG(late_night_screen_minutes)` | ✅ | Less pre-sleep use = better |
 
 **Labels from:** `screen_time_judgments.explanation` (joined via session ID)
 
----
-
-## 4. Social Media
-
-**Simulator:** `backend/services/simulators/socialMediaDataSimulator.js` → `social_media_sessions`  
-**Annotation:** `backend/services/annotators/socialMediaAnnotationService.js`  
-**Aggregation:** AVG over 7 days
-
-| Domain | Metric Key | DB Column | Inverted? | Rationale |
-|---|---|---|---|---|
-| `volume` | `social_minutes` | `AVG(total_social_minutes)` | ✅ | Less = better |
-| `frequency` | `number_of_checks` | `AVG(number_of_social_sessions)` | ✅ | Fewer checks = better |
-| `session_style` | `avg_session_length` | `AVG(average_session_length)` | ✅ | Shorter = better |
-
-**Labels from:** `social_media_judgments.explanation` (joined via session ID)
-
----
-
-## 5. SRL (Self-Regulated Learning)
+## 4. SRL (Self-Regulated Learning)
 
 **Simulator:** `backend/services/simulators/srlDataSimulator.js` → questionnaire responses → `srl_annotations`  
 **Annotation:** `backend/services/annotators/srlAnnotationService.js`  
@@ -109,22 +91,22 @@ Simulator ──► DB Session Tables ──► peerStatsService (getAllUserMetr
 
 Each SRL concept is its own domain. Z-scores computed per concept across all users.
 
-| Domain | Inverted? | Notes |
+| Domain | Inverted? | Short Name |
 |---|---|---|
-| `goal_setting` | ❌ | |
-| `planning` | ❌ | |
-| `task_strategies` | ❌ | |
-| `self_observation` | ❌ | |
-| `self_judgement` | ❌ | |
-| `self_reaction` | ❌ | |
-| `elaboration` | ❌ | |
-| `critical_thinking` | ❌ | |
-| `peer_learning` | ❌ | |
-| `help_seeking` | ❌ | |
-| `self_efficacy` | ❌ | |
-| `intrinsic_motivation` | ❌ | |
-| `effort_regulation` | ❌ | |
+| `efficiency` | ❌ | Efficiency |
+| `importance` | ❌ | Perceived Importance |
+| `tracking` | ❌ | Progress Tracking |
+| `clarity` | ❌ | Task Clarity |
+| `effort` | ❌ | Effort |
+| `focus` | ❌ | Focus |
+| `help_seeking` | ❌ | Help Seeking |
+| `community` | ❌ | Peer Learning |
+| `timeliness` | ❌ | Timeliness |
+| `motivation` | ❌ | Motivation |
 | `anxiety` | ✅ | Lower anxiety = better |
+| `enjoyment` | ❌ | Enjoyment |
+| `learning_from_feedback` | ❌ | Learning from Feedback |
+| `self_assessment` | ❌ | Self Assessment |
 
 **Labels from:** `srl_annotations.annotation_text`
 

@@ -27,7 +27,6 @@ const SCREEN_TIME_PATTERNS = {
         total_minutes: { base: 180, variance: 40 },         // ~3h ± 40min
         late_night_minutes: { base: 10, variance: 8 },      // Minimal late-night
         longest_session: { base: 35, variance: 10 },        // Short, focused sessions
-        session_count: { base: 8, variance: 3 },            // Moderate sessions
         // Behavior modifiers
         anomaly_chance: 0.10,                               // 10% chance of high screen time day
         weekend_screen_increase: 60,                        // +1h on weekends
@@ -40,7 +39,6 @@ const SCREEN_TIME_PATTERNS = {
         total_minutes: { base: 300, variance: 60 },         // ~5h ± 1h
         late_night_minutes: { base: 30, variance: 15 },     // Some late-night
         longest_session: { base: 55, variance: 20 },        // Moderate sessions
-        session_count: { base: 12, variance: 4 },           // Variable sessions
         // Behavior modifiers
         anomaly_chance: 0.15,                               // 15% chance of anomaly
         weekend_screen_increase: 90,                        // +1.5h on weekends
@@ -53,7 +51,6 @@ const SCREEN_TIME_PATTERNS = {
         total_minutes: { base: 450, variance: 80 },         // ~7.5h ± 80min
         late_night_minutes: { base: 60, variance: 25 },     // High late-night
         longest_session: { base: 100, variance: 30 },       // Long binge sessions
-        session_count: { base: 18, variance: 5 },           // Many fragmented sessions
         // Behavior modifiers
         anomaly_chance: 0.08,                               // 8% chance of low screen time day
         weekend_screen_increase: 120,                       // +2h on weekends
@@ -170,15 +167,7 @@ function generateSession(pattern, sessionDate, options = {}) {
     ));
 
     // Session count inversely related to longest session (fragmentation)
-    let sessionCountBase = pattern.session_count.base;
-    if (longestSession > 90) {
-        sessionCountBase = sessionCountBase * 0.7; // Fewer sessions if long binges
-    }
-
-    const sessionCount = Math.round(clamp(
-        addVariance(sessionCountBase, pattern.session_count.variance),
-        1, 40
-    ));
+    // (kept for internal carry-over calculation only, not stored)
 
     // Baseline is same as total for now (will be computed from averages)
     const baselineMinutes = totalMinutes;
@@ -189,7 +178,6 @@ function generateSession(pattern, sessionDate, options = {}) {
         baseline_screen_minutes: baselineMinutes,
         longest_continuous_session: longestSession,
         late_night_screen_minutes: lateNightMinutes,
-        number_of_screen_sessions: sessionCount,
         is_simulated: true,
         // Return quality indicator for carry-over calculation
         _usageRatio: totalMinutes / pattern.total_minutes.base
@@ -267,19 +255,18 @@ async function generateScreenTimeData(pool, userId, days = 7, profileOverride = 
         const result = await pool.query(
             `INSERT INTO public.screen_time_sessions 
              (user_id, session_date, total_screen_minutes, baseline_screen_minutes,
-              longest_continuous_session, late_night_screen_minutes, number_of_screen_sessions, is_simulated)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+              longest_continuous_session, late_night_screen_minutes, is_simulated)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              ON CONFLICT (user_id, session_date) DO UPDATE SET
                total_screen_minutes = EXCLUDED.total_screen_minutes,
                baseline_screen_minutes = EXCLUDED.baseline_screen_minutes,
                longest_continuous_session = EXCLUDED.longest_continuous_session,
                late_night_screen_minutes = EXCLUDED.late_night_screen_minutes,
-               number_of_screen_sessions = EXCLUDED.number_of_screen_sessions,
                is_simulated = EXCLUDED.is_simulated
              RETURNING id`,
             [userId, session.session_date, session.total_screen_minutes, session.baseline_screen_minutes,
                 session.longest_continuous_session, session.late_night_screen_minutes,
-                session.number_of_screen_sessions, session.is_simulated]
+                session.is_simulated]
         );
 
         sessionIds.push(result.rows[0].id);

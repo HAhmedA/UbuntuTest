@@ -14,7 +14,7 @@ const MAX_ALIGNMENT_RETRIES = 1
 
 // Contextual alignment failure messages based on failure category
 const ALIGNMENT_MESSAGES = {
-    default: "I couldn't generate an appropriate response. Could you try rephrasing your question?",
+    default: "The service is down at the moment, please try again later.",
     safety: "I can't help with that particular request. Is there something else about your learning I can assist with?",
     scope: "That topic is outside my expertise. I focus on self-regulated learning strategies and study skills.",
     unclear: "I'm having trouble understanding your request. Could you provide more details or rephrase?"
@@ -24,7 +24,7 @@ const ALIGNMENT_MESSAGES = {
 const ALIGNMENT_FAILED_MESSAGE = ALIGNMENT_MESSAGES.default
 
 // Message when service is unavailable (LLM down, timeout, etc.)
-const SERVICE_UNAVAILABLE_MESSAGE = "I'm having trouble responding right now. Please try again later."
+const SERVICE_UNAVAILABLE_MESSAGE = "The service is down at the moment, please try again later."
 
 /**
  * Categorize alignment failure based on judge's reason
