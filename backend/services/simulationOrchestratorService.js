@@ -7,8 +7,8 @@ import {
     generateSleepData,
     generateSRLData,
     generateScreenTimeData,
-    generateLMSData
 } from './simulators/index.js';
+import { simulateUserData } from './moodleEventSimulator.js';
 import { computeAllScores } from './scoring/index.js';
 import { withTransaction } from '../utils/withTransaction.js';
 
@@ -104,10 +104,12 @@ async function generateStudentData(pool, userId) {
 
             await generateScreenTimeData(client, userId, 7, profile);
             logger.info(`Screen time simulation complete for ${userId}`);
-
-            await generateLMSData(client, userId, 7, profile);
-            logger.info(`LMS simulation complete for ${userId}`);
         });
+
+        // LMS simulation uses moodleEventSimulator which manages its own transaction
+        // and passes data through the same aggregateToDaily() pipeline as real Moodle syncs
+        await simulateUserData(pool, userId);
+        logger.info(`LMS simulation complete for ${userId}`);
 
         // 3. Compute Concept Scores (after all data is generated)
         const scores = await computeAllScores(userId);

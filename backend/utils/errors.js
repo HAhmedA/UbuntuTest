@@ -14,12 +14,15 @@ export class AppError extends Error {
 }
 
 export const Errors = {
-    UNAUTHORIZED:    ()  => new AppError('UNAUTHORIZED', 'Not authenticated', 401),
-    FORBIDDEN:       ()  => new AppError('FORBIDDEN', 'Access denied', 403),
-    NOT_FOUND:       (r) => new AppError('NOT_FOUND', `${r} not found`, 404),
-    VALIDATION:      (d) => new AppError('VALIDATION_ERROR', 'Invalid input', 400, d),
-    DB_ERROR:        (m) => new AppError('DB_ERROR', 'Database error', 500, m),
-    UNKNOWN_CONCEPT: (id) => new AppError('UNKNOWN_CONCEPT', `Unknown concept: ${id}`, 400),
+    UNAUTHORIZED:          ()  => new AppError('UNAUTHORIZED', 'Not authenticated', 401),
+    FORBIDDEN:             ()  => new AppError('FORBIDDEN', 'Access denied', 403),
+    NOT_FOUND:             (r) => new AppError('NOT_FOUND', `${r} not found`, 404),
+    VALIDATION:            (d) => new AppError('VALIDATION_ERROR', 'Invalid input', 400, d),
+    DB_ERROR:              (m) => new AppError('DB_ERROR', 'Database error', 500, m),
+    UNKNOWN_CONCEPT:       (id) => new AppError('UNKNOWN_CONCEPT', `Unknown concept: ${id}`, 400),
+    MOODLE_NOT_CONFIGURED: ()  => new AppError('MOODLE_NOT_CONFIGURED',
+        'Moodle integration not configured. Set MOODLE_BASE_URL and MOODLE_TOKEN in .env.', 503),
+    MOODLE_API_ERROR:      (m) => new AppError('MOODLE_API_ERROR', m, 502),
 }
 
 /**

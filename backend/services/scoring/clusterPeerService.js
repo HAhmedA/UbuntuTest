@@ -40,10 +40,10 @@ import { storeClusterResults, storeUserAssignment } from './clusterStorageServic
 
 const DIMENSION_DEFS = {
     lms: {
-        volume: { metric: 'total_active_minutes', inverted: false },
-        consistency: { metric: 'days_active', inverted: false },
-        action_mix: { metric: 'active_percent', inverted: false },
-        session_quality: { metric: 'avg_session_duration', inverted: false }
+        volume:                 { metric: 'total_active_minutes', inverted: false },
+        consistency:            { metric: 'days_active',          inverted: false },
+        participation_variety:  { metric: 'participation_score',  inverted: false },
+        session_quality:        { metric: 'avg_session_duration', inverted: false },
     },
     sleep: {
         duration: { metric: 'sleep_minutes', inverted: false },

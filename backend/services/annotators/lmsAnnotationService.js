@@ -29,12 +29,9 @@ const THRESHOLDS = {
         somewhat_consistent_min: 3,    // 3-4 days active
         inconsistent_max: 2            // <= 2 days active
     },
-    action_mix: {
-        passive_ratio: 0.85,             // > 85% passive
-        practice_min_active: 1,          // >= 1 active events
-        balanced_passive_min: 0.50,      // 50%
-        balanced_passive_max: 0.75       // 75%
-    },
+    // action_mix thresholds removed — participation_variety uses tool_count (0/1/2/3)
+    // rather than passive/active time ratio (which is always 100% with module REST APIs)
+    action_mix: {},
     practice_intensity: {
         low_max: 0,                      // 0 events
         moderate_min: 1,                 // 1-3 events
@@ -154,27 +151,44 @@ function evaluateConsistency(daysActive) {
 }
 
 /**
- * DOMAIN 4: Action Mix (Per Subject)
- * Includes Sub-domains: Passive/Active, Practice Intensity, Discussion
+ * DOMAIN 4: Participation Variety (replaces Action Mix)
+ * Measures breadth of LMS tool usage across quizzes, assignments, and forums.
+ *
+ * Replaces the old passive/active time ratio which was always 100% when using
+ * module-specific REST APIs (reading_minutes and watching_minutes are unavailable).
+ *
+ * tool_count (0–3) drives the primary judgment:
+ *   0 → no_active_work   (only content viewing, if any)
+ *   1 → single_tool      (only one activity type used)
+ *   2 → multi_tool       (two activity types used)
+ *   3 → fully_engaged    (all three: quizzes + assignments + forum)
+ *
+ * Sub-domains practice_intensity and discussion remain unchanged.
  */
 function evaluateActionMix(metrics) {
-    const passiveMin = metrics.reading_minutes + metrics.watching_minutes;
-    const activePractice = metrics.exercise_practice_events + metrics.assignment_work_events;
-    const totalMin = metrics.total_active_minutes;
-    const passiveRatio = totalMin > 0 ? passiveMin / totalMin : 0;
+    const has_quizzes     = (metrics.exercise_practice_events || 0) > 0;
+    const has_assignments = (metrics.assignment_work_events || 0) > 0;
+    const has_forum       = (metrics.forum_posts || 0) > 0;
+    const tool_count      = (has_quizzes ? 1 : 0) + (has_assignments ? 1 : 0) + (has_forum ? 1 : 0);
 
-    // A. Passive vs Active
-    let type = { key: 'mix_passive', label: 'Engagement was mostly passive' };
-
-    if (passiveRatio > THRESHOLDS.action_mix.passive_ratio && metrics.exercise_practice_events === 0) {
-        type = { key: 'mix_passive', label: 'Engagement was mostly passive' };
-    } else if (metrics.exercise_practice_events >= THRESHOLDS.action_mix.practice_min_active) {
-        type = { key: 'mix_active', label: 'Engagement included active practice' };
-    } else if (passiveRatio >= THRESHOLDS.action_mix.balanced_passive_min && passiveRatio <= THRESHOLDS.action_mix.balanced_passive_max && metrics.exercise_practice_events >= 1) {
-        type = { key: 'mix_balanced', label: 'Engagement was well balanced' };
+    // A. Tool breadth (participation variety)
+    let type;
+    if (tool_count === 0) {
+        type = { key: 'no_active_work', label: 'No active LMS tools used this week' };
+    } else if (tool_count === 1) {
+        type = { key: 'single_tool', label: 'Only one type of LMS activity recorded' };
+    } else if (tool_count === 2) {
+        type = { key: 'multi_tool', label: 'Two types of LMS activity recorded' };
+    } else {
+        type = { key: 'fully_engaged', label: 'All three LMS activity types used' };
     }
 
-    // B. Practice Intensity
+    // Store tool flags for sentence composition
+    type.has_quizzes     = has_quizzes;
+    type.has_assignments = has_assignments;
+    type.has_forum       = has_forum;
+
+    // B. Practice Intensity (unchanged)
     let practice = { key: 'prac_low', label: 'Practice activity was low' };
     if (metrics.exercise_practice_events >= THRESHOLDS.practice_intensity.high_min) {
         practice = { key: 'prac_high', label: 'Practice activity was high' };
@@ -182,7 +196,7 @@ function evaluateActionMix(metrics) {
         practice = { key: 'prac_moderate', label: 'Practice activity was moderate' };
     }
 
-    // C. Discussion Participation
+    // C. Discussion Participation (unchanged)
     let discussion = { key: 'disc_low', label: 'Discussion participation was low' };
     if (metrics.forum_posts >= THRESHOLDS.discussion.high_min) {
         discussion = { key: 'disc_high', label: 'Discussion participation was high' };
@@ -236,20 +250,26 @@ function composeSentences(judgments) {
 
     const sentence1 = `${volume.variation} ${s1_part2}.`;
 
-    // Sentence 2: Action mix + Practice/Discussion
-    // Structure: "[Action Mix Label], with [Practice/Discussion summary]."
+    // Sentence 2: Participation variety + Practice/Discussion
+    // Structure: "[Type Label], with [tool/activity summary]."
 
     let s2_part2 = "";
-    if (actionMix.type.key === 'mix_passive') {
-        s2_part2 = "with little exercise practice or discussion activity";
-    } else if (actionMix.type.key === 'mix_active') {
-        s2_part2 = "including regular exercise practice";
+    const { key, has_quizzes, has_assignments, has_forum } = actionMix.type;
+
+    if (key === 'no_active_work') {
+        s2_part2 = "with no quiz, assignment, or discussion activity recorded";
+    } else if (key === 'single_tool') {
+        if (has_quizzes)     s2_part2 = "with only quiz practice activity";
+        else if (has_assignments) s2_part2 = "with only assignment submissions";
+        else                 s2_part2 = "with only forum discussion activity";
+    } else if (key === 'multi_tool') {
+        s2_part2 = "combining multiple types of LMS activity";
         if (actionMix.discussion.key !== 'disc_low') {
-            s2_part2 += " and discussion participation";
+            s2_part2 += " including discussion participation";
         }
     } else {
-        // Balanced
-        s2_part2 = "combining content review with active practice";
+        // fully_engaged
+        s2_part2 = "actively using quizzes, assignments, and discussions";
     }
 
     const sentence2 = `${actionMix.type.label}, ${s2_part2}.`;
@@ -316,10 +336,12 @@ async function computeJudgments(pool, userId, days = 7) {
     distribution.activeDays = metrics.days_active || 0;
     consistency.activeDays = metrics.days_active || 0;
 
-    const totalMin = metrics.total_active_minutes || 0;
-    const passiveMin = (metrics.reading_minutes || 0) + (metrics.watching_minutes || 0);
-    const passiveRatio = totalMin > 0 ? passiveMin / totalMin : 0;
-    actionMix.activePercent = Math.round((1 - passiveRatio) * 100);
+    // participation_score: breadth of tool usage (0–100)
+    // Replaces activePercent which was always 100% with module REST APIs
+    const quizContrib   = Math.min(metrics.exercise_practice_events || 0, 3) / 3.0 * 34;
+    const assignContrib = Math.min(metrics.assignment_work_events   || 0, 2) / 2.0 * 33;
+    const forumContrib  = Math.min(metrics.forum_posts              || 0, 2) / 2.0 * 33;
+    actionMix.participationScore = Math.round(quizContrib + assignContrib + forumContrib);
 
     const sessions = metrics.number_of_sessions || 0;
     sessionQuality.avgDuration = sessions > 0 ? totalMin / sessions : 0;
@@ -470,10 +492,10 @@ async function getRawScoresForScoring(pool, userId) {
     const details = rows.length > 0 ? rows[0].judgment_details : {};
 
     const labelMap = {
-        volume: details.volume?.label,
-        consistency: details.consistency?.label,
-        action_mix: details.actionMix?.type?.label || 'Action mix evaluated',
-        session_quality: details.sessionQuality?.label
+        volume:                details.volume?.label,
+        consistency:           details.consistency?.label,
+        participation_variety: details.actionMix?.type?.label || 'Tool engagement evaluated',
+        session_quality:       details.sessionQuality?.label,
     };
 
     return clusterResult.domains.map(r => ({

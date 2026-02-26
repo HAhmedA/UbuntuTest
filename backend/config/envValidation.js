@@ -17,7 +17,9 @@ const RECOMMENDED_ENV = {
     CORS_ORIGINS: 'Allowed CORS origins (comma-separated)',
     LLM_BASE_URL: 'LLM API base URL',
     LLM_MAIN_MODEL: 'Main LLM model name',
-    SIMULATION_MODE: 'Set to "false" to disable simulators and exclude test data from clustering (default: "true")'
+    SIMULATION_MODE: 'Set to "false" to disable simulators and exclude test data from clustering (default: "true")',
+    MOODLE_BASE_URL: 'Base URL of Moodle instance for LMS sync (e.g. http://localhost:8888/moodle501)',
+    MOODLE_TOKEN:    'Moodle web service token for REST API access'
 }
 
 /**

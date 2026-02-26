@@ -94,17 +94,24 @@ export async function getAllUserMetrics(conceptId, days = 7) {
 }
 
 // ---- LMS ----
+// participation_score replaces active_percent (action_mix dimension).
+// active_percent was always 100% with module REST APIs (reading/watching unavailable),
+// giving zero variance and making it useless for PGMoE clustering.
+// participation_score rewards breadth of LMS tool usage:
+//   quiz capped at 3 attempts → 34 pts  |  assignments capped at 2 → 33 pts  |  forum capped at 2 → 33 pts
 async function getLMSMetrics(days) {
     const { rows } = await pool.query(`
         SELECT user_id,
                SUM(total_active_minutes) as total_active_minutes,
                SUM(number_of_sessions) as number_of_sessions,
                COUNT(DISTINCT session_date) as days_active,
-               SUM(reading_minutes) + SUM(watching_minutes) as passive_minutes,
-               SUM(total_active_minutes) as total_minutes,
                CASE WHEN SUM(number_of_sessions) > 0
                     THEN SUM(total_active_minutes)::float / SUM(number_of_sessions)
-                    ELSE 0 END as avg_session_duration
+                    ELSE 0 END as avg_session_duration,
+               LEAST(SUM(exercise_practice_events), 3) / 3.0 * 34.0
+               + LEAST(SUM(assignment_work_events), 2) / 2.0 * 33.0
+               + LEAST(SUM(forum_posts), 2) / 2.0 * 33.0
+               AS participation_score
         FROM public.lms_sessions
         WHERE session_date >= CURRENT_DATE - INTERVAL '${days} days'
         ${EXCLUDE_SIMULATED_USERS}
@@ -112,15 +119,12 @@ async function getLMSMetrics(days) {
     `)
     const metrics = {}
     for (const r of rows) {
-        const totalMin = parseFloat(r.total_minutes) || 0
-        const passiveMin = parseFloat(r.passive_minutes) || 0
-        const activePercent = totalMin > 0 ? ((totalMin - passiveMin) / totalMin) * 100 : 0
         metrics[r.user_id] = {
-            total_active_minutes: parseFloat(r.total_active_minutes) || 0,
-            number_of_sessions:   parseFloat(r.number_of_sessions)   || 0,
-            days_active:          parseFloat(r.days_active)           || 0,
-            active_percent:       activePercent,
-            avg_session_duration: parseFloat(r.avg_session_duration) || 0
+            total_active_minutes: parseFloat(r.total_active_minutes)  || 0,
+            number_of_sessions:   parseFloat(r.number_of_sessions)    || 0,
+            days_active:          parseFloat(r.days_active)            || 0,
+            participation_score:  parseFloat(r.participation_score)   || 0,
+            avg_session_duration: parseFloat(r.avg_session_duration)  || 0,
         }
     }
     return metrics
