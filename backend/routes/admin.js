@@ -125,8 +125,11 @@ router.get('/students/:studentId/scores', asyncRoute(async (req, res) => {
 
         // Cluster info
         const { rows: clusterRows } = await pool.query(
-            `SELECT uca.concept_id, uca.cluster_label, uca.percentile_position,
-                    pc.p5, pc.p50, pc.p95
+            `SELECT uca.concept_id, uca.cluster_label, uca.cluster_index,
+                    uca.percentile_position,
+                    pc.p5, pc.p50, pc.p95, pc.user_count,
+                    (SELECT COUNT(*) FROM public.peer_clusters pc2
+                     WHERE pc2.concept_id = uca.concept_id) AS total_clusters
              FROM public.user_cluster_assignments uca
              JOIN public.peer_clusters pc
                ON pc.concept_id = uca.concept_id AND pc.cluster_index = uca.cluster_index
@@ -137,7 +140,10 @@ router.get('/students/:studentId/scores', asyncRoute(async (req, res) => {
         for (const r of clusterRows) {
             clusterInfo[r.concept_id] = {
                 clusterLabel: r.cluster_label,
+                clusterIndex: parseInt(r.cluster_index, 10),
+                totalClusters: parseInt(r.total_clusters, 10),
                 percentilePosition: parseFloat(r.percentile_position) || 50,
+                clusterUserCount: parseInt(r.user_count, 10),
                 dialMin: Math.round(parseFloat(r.p5) * 100) / 100,
                 dialCenter: Math.round(parseFloat(r.p50) * 100) / 100,
                 dialMax: Math.round(parseFloat(r.p95) * 100) / 100
@@ -152,6 +158,10 @@ router.get('/students/:studentId/scores', asyncRoute(async (req, res) => {
             breakdown: row.aspect_breakdown,
             yesterdayScore: yesterdayScores[row.concept_id] || null,
             clusterLabel: clusterInfo[row.concept_id]?.clusterLabel || null,
+            clusterIndex: clusterInfo[row.concept_id]?.clusterIndex ?? null,
+            totalClusters: clusterInfo[row.concept_id]?.totalClusters ?? null,
+            percentilePosition: clusterInfo[row.concept_id]?.percentilePosition ?? null,
+            clusterUserCount: clusterInfo[row.concept_id]?.clusterUserCount ?? null,
             dialMin: clusterInfo[row.concept_id]?.dialMin || 0,
             dialCenter: clusterInfo[row.concept_id]?.dialCenter || 50,
             dialMax: clusterInfo[row.concept_id]?.dialMax || 100,
@@ -167,6 +177,71 @@ router.get('/students/:studentId/annotations', asyncRoute(async (req, res) => {
         const { timeWindow } = req.query
         const annotations = await getAnnotations(pool, studentId, timeWindow, false)
         res.json({ annotations })
+}))
+
+// Cluster diagnostics — most-recent run per concept
+router.get('/cluster-diagnostics', asyncRoute(async (req, res) => {
+    const { rows } = await pool.query(
+        `SELECT DISTINCT ON (concept_id)
+                id, concept_id, selected_k, selected_cov_type,
+                silhouette_score, davies_bouldin_index,
+                all_candidates, cluster_sizes, n_users, n_dimensions, computed_at
+         FROM public.cluster_run_diagnostics
+         ORDER BY concept_id, computed_at DESC`
+    )
+    const diagnostics = rows.map(r => ({
+        conceptId: r.concept_id,
+        selectedK: r.selected_k,
+        selectedCovType: r.selected_cov_type,
+        silhouetteScore: r.silhouette_score != null ? parseFloat(r.silhouette_score) : null,
+        daviesBouldinIndex: r.davies_bouldin_index != null ? parseFloat(r.davies_bouldin_index) : null,
+        allCandidates: r.all_candidates,
+        clusterSizes: r.cluster_sizes,
+        nUsers: r.n_users,
+        nDimensions: r.n_dimensions,
+        computedAt: r.computed_at
+    }))
+    res.json({ diagnostics })
+}))
+
+// Cluster members — all students with their cluster assignments and scores
+router.get('/cluster-members', asyncRoute(async (req, res) => {
+    const { rows } = await pool.query(
+        `SELECT
+            uca.concept_id,
+            uca.cluster_index,
+            uca.cluster_label,
+            uca.percentile_position,
+            u.id          AS user_id,
+            u.name,
+            u.email,
+            cs.score,
+            cs.trend,
+            cs.aspect_breakdown,
+            pc.p50        AS cluster_p50
+         FROM public.user_cluster_assignments uca
+         JOIN public.users u
+             ON u.id = uca.user_id
+         LEFT JOIN public.concept_scores cs
+             ON cs.user_id = uca.user_id AND cs.concept_id = uca.concept_id
+         JOIN public.peer_clusters pc
+             ON pc.concept_id = uca.concept_id AND pc.cluster_index = uca.cluster_index
+         ORDER BY uca.concept_id, uca.cluster_index, uca.percentile_position DESC`
+    )
+    const members = rows.map(r => ({
+        conceptId: r.concept_id,
+        clusterIndex: parseInt(r.cluster_index, 10),
+        clusterLabel: r.cluster_label,
+        clusterP50: r.cluster_p50 != null ? parseFloat(r.cluster_p50) : null,
+        userId: r.user_id,
+        name: r.name,
+        email: r.email,
+        score: r.score != null ? parseFloat(r.score) : null,
+        trend: r.trend,
+        percentilePosition: r.percentile_position != null ? parseFloat(r.percentile_position) : null,
+        breakdown: r.aspect_breakdown || null
+    }))
+    res.json({ members })
 }))
 
 // Legacy routes for backwards compatibility

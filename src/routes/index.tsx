@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Route, NavLink, Routes } from 'react-router-dom'
 import Home from "../pages/Home"
 import Run from "../pages/Run"
@@ -15,16 +15,29 @@ import { logout } from '../redux/auth'
 export const NavBar = () => {
     const user = useReduxSelector(state => state.auth.user)
     const dispatch = useReduxDispatch()
+    const [menuOpen, setMenuOpen] = useState(false)
     return (
         <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-                {user && <NavLink className='sjs-nav-button sjs-nav-button-gold' to="/"><span>Home</span></NavLink>}
+                {user && <NavLink className='sjs-nav-button sjs-nav-button-gold' to="/" onClick={() => setMenuOpen(false)}><span>Home</span></NavLink>}
             </div>
             <div style={{ display: 'flex', alignItems: 'center' }}>
                 {user && (
                     <>
-                        <NavLink className='sjs-nav-button sjs-nav-button-gold sjs-nav-button-grouped' to="/profile"><span>Profile</span></NavLink>
-                        <span className='sjs-nav-button sjs-nav-button-gold sjs-nav-button-grouped' onClick={() => dispatch(logout())}><span>Logout</span></span>
+                        <button
+                            className={`sjs-hamburger${menuOpen ? ' sjs-hamburger--open' : ''}`}
+                            aria-label="Toggle navigation menu"
+                            aria-expanded={menuOpen}
+                            onClick={() => setMenuOpen(o => !o)}
+                        >
+                            <span />
+                            <span />
+                            <span />
+                        </button>
+                        <div className={`sjs-nav-links${menuOpen ? ' sjs-nav-links--open' : ''}`}>
+                            <NavLink className='sjs-nav-button sjs-nav-button-gold sjs-nav-button-grouped' to="/profile" onClick={() => setMenuOpen(false)}><span>Profile</span></NavLink>
+                            <span className='sjs-nav-button sjs-nav-button-gold sjs-nav-button-grouped' onClick={() => { dispatch(logout()); setMenuOpen(false); }}><span>Logout</span></span>
+                        </div>
                     </>
                 )}
             </div>

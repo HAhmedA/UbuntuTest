@@ -182,9 +182,12 @@
   cursor: pointer;
 }
 
-.mood-card-clickable:hover {
+.mood-card-clickable:hover,
+.mood-card-clickable:focus-visible {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  outline: 2px solid #0891B2;
+  outline-offset: 2px;
 }
 
 .mood-card-content {

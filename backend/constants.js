@@ -34,3 +34,15 @@ export const GREETING_FALLBACK =
  * Session configuration
  */
 export const SESSION_TIMEOUT_SECONDS = 1800 // 30 minutes
+
+/**
+ * Numeric boundaries for the three-tier score category system.
+ * Used by the PGMoE clustering pipeline to classify per-domain scores (0–100).
+ *   score >= VERY_GOOD  → 'very_good'
+ *   score >= GOOD       → 'good'
+ *   else                → 'requires_improvement'
+ */
+export const SCORE_THRESHOLDS = {
+    VERY_GOOD: 66,
+    GOOD: 33,
+}

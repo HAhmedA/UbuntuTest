@@ -154,6 +154,48 @@ h1 {
 }
 
 /* ========================================
+   HAMBURGER MENU (mobile nav toggle)
+   ======================================== */
+
+.sjs-hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 24px;
+  height: 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 110;
+  margin-left: 8px;
+}
+
+.sjs-hamburger span {
+  display: block;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+/* Animate to X when open */
+.sjs-hamburger--open span:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+.sjs-hamburger--open span:nth-child(2) {
+  opacity: 0;
+}
+.sjs-hamburger--open span:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+.sjs-nav-links {
+  display: flex;
+  align-items: center;
+}
+
+/* ========================================
    MOBILE RESPONSIVE STYLES
    ======================================== */
 
@@ -204,6 +246,36 @@ h1 {
   .sjs-client-app__content--surveys-list,
   .sjs-client-app__content--about {
     max-width: 100%;
+  }
+}
+
+/* Hamburger breakpoint — collapse nav into dropdown */
+@media (max-width: 640px) {
+  .sjs-hamburger {
+    display: flex;
+  }
+
+  .sjs-nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: linear-gradient(90deg, #3B82F6 0%, #0891B2 100%);
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 16px;
+    gap: 4px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .sjs-nav-links--open {
+    display: flex;
+  }
+
+  .sjs-nav-links .sjs-nav-button-grouped {
+    margin-left: 0 !important;
   }
 }
 

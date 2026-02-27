@@ -10,6 +10,10 @@ interface ConceptScore {
     trend: string | null
     yesterdayScore?: number | null
     clusterLabel?: string | null
+    clusterIndex?: number | null
+    totalClusters?: number | null
+    percentilePosition?: number | null
+    clusterUserCount?: number | null
     dialMin?: number
     dialCenter?: number
     dialMax?: number
@@ -42,6 +46,18 @@ interface Props {
 // =============================================================================
 // HELPER FUNCTIONS (pure, no side-effects)
 // =============================================================================
+
+/** Returns ordinal suffix string, e.g. 1 → "1st", 2 → "2nd", 42 → "42nd" */
+function ordinal(n: number): string {
+    const abs = Math.abs(Math.round(n))
+    const mod100 = abs % 100
+    const mod10 = abs % 10
+    if (mod100 >= 11 && mod100 <= 13) return `${abs}th`
+    if (mod10 === 1) return `${abs}st`
+    if (mod10 === 2) return `${abs}nd`
+    if (mod10 === 3) return `${abs}rd`
+    return `${abs}th`
+}
 
 function formatAspectName(key: string) {
     return key.split('_')
@@ -197,11 +213,46 @@ const ScoreBoard = ({
                                         : comparison.tone === 'worse'
                                             ? '#92400e'
                                             : '#374151'
+                                    // Cluster badge tier colors
+                                    const isTop = score.clusterIndex === (score.totalClusters ?? 0) - 1
+                                    const isBottom = score.clusterIndex === 0
+                                    const badgeBg = isTop ? '#ECFDF5' : isBottom ? '#FFFBEB' : '#EFF6FF'
+                                    const badgeBorder = isTop ? '#6EE7B7' : isBottom ? '#FCD34D' : '#BFDBFE'
+                                    const badgeColor = isTop ? '#065F46' : isBottom ? '#78350F' : '#1E3A5F'
+                                    const badgeDot = isTop ? '🟢' : isBottom ? '🟡' : '🔵'
+                                    const showBadge = score.clusterLabel != null
+                                        && score.clusterIndex != null
+                                        && score.totalClusters != null
+
                                     return (
                                         <div className='score-details-list'>
                                             <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '4px', marginBottom: '8px' }}>
                                                 <div className='score-details-title' style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>Detailed Breakdown</div>
                                             </div>
+                                            {showBadge && (
+                                                <div className='cluster-badge' style={{
+                                                    backgroundColor: badgeBg,
+                                                    border: `1px solid ${badgeBorder}`,
+                                                    borderRadius: '8px',
+                                                    padding: '8px 12px',
+                                                    marginBottom: '10px',
+                                                    color: badgeColor
+                                                }}>
+                                                    <div className='cluster-badge-label'>
+                                                        {badgeDot} {score.clusterLabel}
+                                                    </div>
+                                                    {score.percentilePosition != null && (
+                                                        <div className='cluster-badge-detail'>
+                                                            You are at the {ordinal(score.percentilePosition)} percentile of this group
+                                                        </div>
+                                                    )}
+                                                    {score.clusterUserCount != null && (
+                                                        <div className='cluster-badge-detail'>
+                                                            {score.clusterUserCount} student{score.clusterUserCount !== 1 ? 's' : ''} in this group
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                             <div style={{
                                                 backgroundColor: toneBg,
                                                 border: `1px solid ${toneBorder}`,

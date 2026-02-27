@@ -30,9 +30,15 @@ import {
     centerNormalize,
     fitPGMoE,
     selectOptimalModel,
-    generateClusterLabels
+    generateClusterLabels,
+    computeSilhouetteScore,
+    computeDaviesBouldinIndex
 } from './pgmoeAlgorithm.js';
-import { storeClusterResults, storeUserAssignment } from './clusterStorageService.js';
+import { storeClusterResults, storeUserAssignment, storeDiagnostics } from './clusterStorageService.js';
+import { withTransaction } from '../../utils/withTransaction.js';
+import pool from '../../config/database.js';
+import { percentile } from '../../utils/stats.js';
+import { SCORE_THRESHOLDS } from '../../constants.js';
 
 // =============================================================================
 // DIMENSION DEFINITIONS (which metrics to use, and which are inverted)
@@ -63,19 +69,6 @@ const DIMENSION_DEFS = {
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
-
-/**
- * Compute percentile of a sorted array at a given percentile (0-100)
- */
-function percentile(sortedArr, p) {
-    if (sortedArr.length === 0) return 0;
-    if (sortedArr.length === 1) return sortedArr[0];
-    const idx = (p / 100) * (sortedArr.length - 1);
-    const lower = Math.floor(idx);
-    const upper = Math.ceil(idx);
-    if (lower === upper) return sortedArr[lower];
-    return sortedArr[lower] + (sortedArr[upper] - sortedArr[lower]) * (idx - lower);
-}
 
 /**
  * Map a value to 0-100 within a [min, max] range
@@ -196,8 +189,26 @@ async function computeClusterScores(dbPool, conceptId, userId, days = 7) {
     const { centered } = centerNormalize(featureMatrix);
 
     // Select optimal (K, covType) via composite BIC+AIC+entropy criterion
-    const { k, covType, model } = selectOptimalModel(centered, 2, 4);
+    const { k, covType, model, diagnostics } = selectOptimalModel(centered, 2, 4);
     logger.info(`${conceptId}: K=${k}, cov=${covType} for ${userIds.length} users`);
+
+    // Compute and store diagnostics (fire-and-forget — does not block scoring)
+    {
+        const silhouette = computeSilhouetteScore(centered, model.assignments, k);
+        const daviesBouldin = computeDaviesBouldinIndex(centered, model.assignments, k, model.means);
+        const clusterSizes = [];
+        for (let c = 0; c < k; c++) {
+            clusterSizes.push(model.assignments.filter(a => a === c).length);
+        }
+        storeDiagnostics(conceptId, {
+            silhouette,
+            daviesBouldin,
+            diagnostics,
+            clusterSizes,
+            nUsers: userIds.length,
+            nDimensions: dimKeys.length
+        }).catch(err => logger.error(`storeDiagnostics fire-and-forget error: ${err.message}`));
+    }
 
     // Compute composite scores for each user
     const composites = userIds.map((uid, idx) => ({
@@ -240,18 +251,20 @@ async function computeClusterScores(dbPool, conceptId, userId, days = 7) {
     const p95 = percentile(clusterComposites, 95);
     const userPercentile = mapToRange(userComposite, p5, p95);
 
-    const labels = generateClusterLabels(k);
+    const labels = generateClusterLabels(k, conceptId);
     const clusterLabel = labels[Math.min(userOrderedCluster, labels.length - 1)];
 
-    // Store cluster definitions and assignment in DB
-    await storeClusterResults(conceptId, composites, clusterRemap, clusterMeans, k, model);
-    await storeUserAssignment(userId, conceptId, userOrderedCluster, clusterLabel, userPercentile);
+    // Store cluster definitions and assignment atomically
+    await withTransaction(pool, async (client) => {
+        await storeClusterResults(conceptId, composites, clusterRemap, clusterMeans, k, model, client);
+        await storeUserAssignment(userId, conceptId, userOrderedCluster, clusterLabel, userPercentile, client);
+    });
 
     // Also compute per-domain results for the breakdown
     const { domainScores } = computeCompositeScore(allMetrics[userId], allMetrics, dims);
     const domainResults = domainScores.map(ds => {
-        const category = ds.score >= 66 ? 'very_good' : ds.score >= 33 ? 'good' : 'requires_improvement';
-        const categoryLabel = ds.score >= 66 ? 'Very Good' : ds.score >= 33 ? 'Good' : 'Could Improve';
+        const category = ds.score >= SCORE_THRESHOLDS.VERY_GOOD ? 'very_good' : ds.score >= SCORE_THRESHOLDS.GOOD ? 'good' : 'requires_improvement';
+        const categoryLabel = ds.score >= SCORE_THRESHOLDS.VERY_GOOD ? 'Very Good' : ds.score >= SCORE_THRESHOLDS.GOOD ? 'Good' : 'Could Improve';
         return {
             domain: ds.domain,
             numericScore: Math.round(ds.score * 100) / 100,
@@ -305,8 +318,26 @@ async function computeSRLClusterScores(allMetrics, userId) {
     // Center-normalize for PGMoE
     const { centered: centeredSRL } = centerNormalize(featureMatrix);
 
-    const { k, covType, model } = selectOptimalModel(centeredSRL, 2, 4);
+    const { k, covType, model, diagnostics } = selectOptimalModel(centeredSRL, 2, 4);
     logger.info(`srl: K=${k}, cov=${covType} for ${userIds.length} users`);
+
+    // Compute and store diagnostics (fire-and-forget)
+    {
+        const silhouette = computeSilhouetteScore(centeredSRL, model.assignments, k);
+        const daviesBouldin = computeDaviesBouldinIndex(centeredSRL, model.assignments, k, model.means);
+        const clusterSizes = [];
+        for (let c = 0; c < k; c++) {
+            clusterSizes.push(model.assignments.filter(a => a === c).length);
+        }
+        storeDiagnostics('srl', {
+            silhouette,
+            daviesBouldin,
+            diagnostics,
+            clusterSizes,
+            nUsers: userIds.length,
+            nDimensions: conceptKeys.length
+        }).catch(err => logger.error(`storeDiagnostics(srl) fire-and-forget error: ${err.message}`));
+    }
 
     // Compute composite scores
     const composites = userIds.map((uid, idx) => {
@@ -353,11 +384,13 @@ async function computeSRLClusterScores(allMetrics, userId) {
     const p95 = percentile(clusterComposites, 95);
     const userPercentile = mapToRange(userComposite, p5, p95);
 
-    const srlLabels = generateClusterLabels(k);
+    const srlLabels = generateClusterLabels(k, 'srl');
     const clusterLabel = srlLabels[Math.min(userOrderedCluster, srlLabels.length - 1)];
 
-    await storeClusterResults('srl', composites, clusterRemap, clusterMeans, k, model);
-    await storeUserAssignment(userId, 'srl', userOrderedCluster, clusterLabel, userPercentile);
+    await withTransaction(pool, async (client) => {
+        await storeClusterResults('srl', composites, clusterRemap, clusterMeans, k, model, client);
+        await storeUserAssignment(userId, 'srl', userOrderedCluster, clusterLabel, userPercentile, client);
+    });
 
     // Per-domain results for SRL
     const domainResults = conceptKeys.map(ck => {
@@ -365,8 +398,8 @@ async function computeSRLClusterScores(allMetrics, userId) {
         if (!data) return { domain: ck, numericScore: 50, category: 'good', categoryLabel: 'Good' };
         let score = (data.score / 5) * 100;
         if (data.isInverted) score = 100 - score;
-        const category = score >= 66 ? 'very_good' : score >= 33 ? 'good' : 'requires_improvement';
-        const categoryLabel = score >= 66 ? 'Very Good' : score >= 33 ? 'Good' : 'Could Improve';
+        const category = score >= SCORE_THRESHOLDS.VERY_GOOD ? 'very_good' : score >= SCORE_THRESHOLDS.GOOD ? 'good' : 'requires_improvement';
+        const categoryLabel = score >= SCORE_THRESHOLDS.VERY_GOOD ? 'Very Good' : score >= SCORE_THRESHOLDS.GOOD ? 'Good' : 'Could Improve';
         return {
             domain: ck,
             numericScore: Math.round(score * 100) / 100,

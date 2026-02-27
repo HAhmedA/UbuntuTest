@@ -494,15 +494,72 @@ function selectOptimalModel(data, kMin = 2, kMax = 6) {
     return {
         k: bestCandidate.k,
         covType: bestCandidate.covType,
-        model: bestCandidate.model
+        model: bestCandidate.model,
+        diagnostics: {
+            selected: {
+                k: bestCandidate.k,
+                covType: bestCandidate.covType,
+                bic: bestCandidate.bic,
+                aic: bestCandidate.aic,
+                entropy: bestCandidate.entropy,
+                logL: bestCandidate.logL,
+                compositeRank: bestScore
+            },
+            candidates: candidates.map(c => ({
+                k: c.k,
+                covType: c.covType,
+                bic: c.bic,
+                aic: c.aic,
+                entropy: c.entropy,
+                compositeRank: 0.4 * bicRank.get(c) + 0.3 * aicRank.get(c) + 0.3 * entRank.get(c)
+            }))
+        }
     };
 }
 
 /**
+ * Concept-specific cluster labels ordered from worst (index 0) to best (index K-1).
+ * Each concept has entries for K=2, K=3, K=4; K=1 and K>4 fall back to generic labels.
+ */
+const CONCEPT_CLUSTER_LABELS = {
+    lms: {
+        2: ['Limited engagement',   'Active learners'],
+        3: ['Limited engagement',   'Developing engagement',  'Active learners'],
+        4: ['Limited engagement',   'Building engagement',    'Consistent learners', 'Active learners'],
+    },
+    sleep: {
+        2: ['Disrupted patterns',   'Healthy sleepers'],
+        3: ['Disrupted patterns',   'Developing habits',      'Healthy sleepers'],
+        4: ['Disrupted patterns',   'Irregular patterns',     'Developing habits',   'Healthy sleepers'],
+    },
+    screen_time: {
+        2: ['Heavy usage',          'Balanced usage'],
+        3: ['Heavy usage',          'Moderate usage',         'Balanced usage'],
+        4: ['Heavy usage',          'Above-average usage',    'Moderate usage',      'Balanced usage'],
+    },
+    srl: {
+        2: ['Developing regulation', 'Strong self-regulators'],
+        3: ['Developing regulation', 'Building regulation',   'Strong self-regulators'],
+        4: ['Developing regulation', 'Building regulation',   'Capable regulators',  'Strong self-regulators'],
+    },
+};
+
+/**
  * Generate human-readable cluster labels for any K.
  * Labels are ordered from worst (index 0) to best (index K-1).
+ * When conceptId is provided and K is in the concept's table, returns concept-specific labels.
+ * Otherwise falls back to generic labels.
+ *
+ * @param {number} k - Number of clusters
+ * @param {string|null} [conceptId] - 'lms', 'sleep', 'screen_time', or 'srl'
  */
-function generateClusterLabels(k) {
+function generateClusterLabels(k, conceptId = null) {
+    // Use concept-specific labels when available
+    if (conceptId && CONCEPT_CLUSTER_LABELS[conceptId]?.[k]) {
+        return CONCEPT_CLUSTER_LABELS[conceptId][k];
+    }
+
+    // Generic fallback (unchanged)
     if (k === 1) return ['Your peer group'];
     if (k === 2) return [
         'Students building stronger habits',
@@ -524,6 +581,116 @@ function generateClusterLabels(k) {
 }
 
 // =============================================================================
+// STATISTICAL VALIDATION METRICS
+// =============================================================================
+
+/**
+ * Compute the mean Silhouette score for a clustering result.
+ * Range [-1, 1]; higher is better.
+ *   a(i) = mean intra-cluster distance
+ *   b(i) = mean distance to nearest other cluster
+ *   s(i) = (b(i) - a(i)) / max(a(i), b(i))
+ *
+ * @param {number[][]} data - Feature matrix (N x D), center-normalized
+ * @param {number[]} assignments - Cluster index per point (length N)
+ * @param {number} k - Number of clusters
+ * @returns {number} Mean silhouette score
+ */
+function computeSilhouetteScore(data, assignments, k) {
+    const n = data.length;
+    if (n < 2 || k < 2) return 0;
+
+    // Euclidean distance between two vectors
+    const dist = (a, b) => {
+        let s = 0;
+        for (let j = 0; j < a.length; j++) s += (a[j] - b[j]) ** 2;
+        return Math.sqrt(s);
+    };
+
+    let totalS = 0;
+    for (let i = 0; i < n; i++) {
+        const ci = assignments[i];
+
+        // Intra-cluster mean distance a(i)
+        const sameCluster = [];
+        for (let j = 0; j < n; j++) {
+            if (j !== i && assignments[j] === ci) sameCluster.push(dist(data[i], data[j]));
+        }
+        const a = sameCluster.length > 0
+            ? sameCluster.reduce((s, v) => s + v, 0) / sameCluster.length
+            : 0;
+
+        // Nearest-other-cluster mean distance b(i)
+        let b = Infinity;
+        for (let c = 0; c < k; c++) {
+            if (c === ci) continue;
+            const otherCluster = [];
+            for (let j = 0; j < n; j++) {
+                if (assignments[j] === c) otherCluster.push(dist(data[i], data[j]));
+            }
+            if (otherCluster.length > 0) {
+                const meanDist = otherCluster.reduce((s, v) => s + v, 0) / otherCluster.length;
+                if (meanDist < b) b = meanDist;
+            }
+        }
+        if (!isFinite(b)) b = 0;
+
+        const maxAB = Math.max(a, b);
+        totalS += maxAB > 0 ? (b - a) / maxAB : 0;
+    }
+    return totalS / n;
+}
+
+/**
+ * Compute the Davies-Bouldin Index for a clustering result.
+ * Range [0, ∞); lower is better. DB < 1.0 = well-separated.
+ *
+ * @param {number[][]} data - Feature matrix (N x D)
+ * @param {number[]} assignments - Cluster index per point
+ * @param {number} k - Number of clusters
+ * @param {number[][]} means - Cluster centroids (k x D)
+ * @returns {number} Davies-Bouldin index
+ */
+function computeDaviesBouldinIndex(data, assignments, k, means) {
+    const n = data.length;
+    if (n < 2 || k < 2) return 0;
+
+    const dist = (a, b) => {
+        let s = 0;
+        for (let j = 0; j < a.length; j++) s += (a[j] - b[j]) ** 2;
+        return Math.sqrt(s);
+    };
+
+    // S_i = mean distance from members to centroid
+    const S = new Array(k).fill(0);
+    const counts = new Array(k).fill(0);
+    for (let i = 0; i < n; i++) {
+        const c = assignments[i];
+        S[c] += dist(data[i], means[c]);
+        counts[c]++;
+    }
+    for (let c = 0; c < k; c++) {
+        S[c] = counts[c] > 0 ? S[c] / counts[c] : 0;
+    }
+
+    // DB = (1/k) * Σ_i max_{j≠i} (S_i + S_j) / ||c_i - c_j||
+    let db = 0;
+    for (let i = 0; i < k; i++) {
+        let maxR = 0;
+        for (let j = 0; j < k; j++) {
+            if (j === i) continue;
+            const centroidDist = dist(means[i], means[j]);
+            if (centroidDist > 0) {
+                const R = (S[i] + S[j]) / centroidDist;
+                if (R > maxR) maxR = R;
+            }
+        }
+        db += maxR;
+    }
+    return db / k;
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -539,5 +706,7 @@ export {
     fitPGMoE,
     computeNormalizedEntropy,
     selectOptimalModel,
-    generateClusterLabels
+    generateClusterLabels,
+    computeSilhouetteScore,
+    computeDaviesBouldinIndex
 };

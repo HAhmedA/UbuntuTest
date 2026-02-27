@@ -1,6 +1,6 @@
 // LMS Annotation Service
 // Rule-based computation engine that generates human-readable LMS judgments
-// Modeled after existing judgment services but evaluates per subject independently
+// Evaluates volume, consistency, participation variety, and session quality domains
 
 // =============================================================================
 // THRESHOLD CONFIGURATION
@@ -29,9 +29,6 @@ const THRESHOLDS = {
         somewhat_consistent_min: 3,    // 3-4 days active
         inconsistent_max: 2            // <= 2 days active
     },
-    // action_mix thresholds removed — participation_variety uses tool_count (0/1/2/3)
-    // rather than passive/active time ratio (which is always 100% with module REST APIs)
-    action_mix: {},
     practice_intensity: {
         low_max: 0,                      // 0 events
         moderate_min: 1,                 // 1-3 events
@@ -165,7 +162,7 @@ function evaluateConsistency(daysActive) {
  *
  * Sub-domains practice_intensity and discussion remain unchanged.
  */
-function evaluateActionMix(metrics) {
+function evaluateParticipationVariety(metrics) {
     const has_quizzes     = (metrics.exercise_practice_events || 0) > 0;
     const has_assignments = (metrics.assignment_work_events || 0) > 0;
     const has_forum       = (metrics.forum_posts || 0) > 0;
@@ -282,12 +279,8 @@ function composeSentences(judgments) {
 // =============================================================================
 
 /**
- * Compute judgments (and sentences) for a subject over a period
- * Aggregates daily sessions for the period logic
- */
-/**
- * Compute judgments (and sentences) for LMS activity over a period
- * Aggregates daily sessions for the period logic
+ * Compute judgments (and sentences) for LMS activity over a period.
+ * Aggregates daily lms_sessions rows for the requested look-back window.
  */
 async function computeJudgments(pool, userId, days = 7) {
     // 1. Get aggregated metrics for the period
@@ -305,8 +298,8 @@ async function computeJudgments(pool, userId, days = 7) {
            SUM(forum_views) as forum_views,
            SUM(forum_posts) as forum_posts
          FROM public.lms_sessions
-         WHERE user_id = $1 AND session_date >= CURRENT_DATE - INTERVAL '${days} days'`,
-        [userId]
+         WHERE user_id = $1 AND session_date >= CURRENT_DATE - ($2 * INTERVAL '1 day')`,
+        [userId, days]
     );
 
     const metrics = metricsRows[0];
@@ -328,7 +321,7 @@ async function computeJudgments(pool, userId, days = 7) {
     const volume = evaluateActivityVolume(metrics, baseline);
     const distribution = evaluateDistribution(metrics);
     const consistency = evaluateConsistency(metrics.days_active);
-    const actionMix = evaluateActionMix(metrics);
+    const actionMix = evaluateParticipationVariety(metrics);
     const sessionQuality = evaluateSessionQuality(metrics);
 
     // Inject metrics for scoring
@@ -358,16 +351,16 @@ async function computeJudgments(pool, userId, days = 7) {
 
     // We just update the 'current window' record
     await pool.query(
-        `INSERT INTO public.lms_judgments 
+        `INSERT INTO public.lms_judgments
          (user_id, period_start, period_end, sentence_1, sentence_2, judgment_details, computed_at)
-         VALUES ($1, CURRENT_DATE - INTERVAL '${days} days', CURRENT_DATE, $2, $3, $4, NOW())
+         VALUES ($1, CURRENT_DATE - ($2 * INTERVAL '1 day'), CURRENT_DATE, $3, $4, $5, NOW())
          ON CONFLICT (user_id, period_start, period_end)
          DO UPDATE SET
            sentence_1 = EXCLUDED.sentence_1,
            sentence_2 = EXCLUDED.sentence_2,
            judgment_details = EXCLUDED.judgment_details,
            computed_at = NOW()`,
-        [userId, sentences.sentence_1, sentences.sentence_2, JSON.stringify(judgments)]
+        [userId, days, sentences.sentence_1, sentences.sentence_2, JSON.stringify(judgments)]
     );
 
     return sentences;
@@ -402,9 +395,6 @@ async function getOrCreateBaseline(pool, userId) {
     return result.rows[0];
 }
 
-/**
- * Get judgments for chatbot Integration
- */
 /**
  * Get formatted LMS analysis for chatbot prompt.
  * Returns a placeholder when no LMS data is available (integration pending).
@@ -526,7 +516,7 @@ export {
     evaluateActivityVolume,
     evaluateDistribution,
     evaluateConsistency,
-    evaluateActionMix,
+    evaluateParticipationVariety,
     evaluateSessionQuality,
     composeSentences
 };

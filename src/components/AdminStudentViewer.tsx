@@ -134,7 +134,7 @@ const AdminStudentViewer = ({ onStudentSelect, selectedStudentId }: Props) => {
 
             {/* ── Student LMS sync table ── */}
             {syncStatuses.length > 0 && (
-                <div className='admin-lms-table-wrapper'>
+                <div className='admin-lms-table-wrapper' style={{ overflowX: 'auto' }}>
                     <table className='admin-lms-table'>
                         <thead>
                             <tr>

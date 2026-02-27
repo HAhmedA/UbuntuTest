@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Surveys from '../components/Surveys'
 import SleepSlider from '../components/SleepSlider'
 import AdminStudentViewer from '../components/AdminStudentViewer'
+import AdminClusterDiagnosticsPanel from '../components/AdminClusterDiagnosticsPanel'
 import ScoreBoard from '../components/ScoreBoard'
 import { useReduxSelector, useReduxDispatch } from '../redux'
 import { load } from '../redux/surveys'
@@ -18,6 +19,10 @@ interface ConceptScore {
     trend: string | null
     yesterdayScore?: number | null
     clusterLabel?: string | null
+    clusterIndex?: number | null
+    totalClusters?: number | null
+    percentilePosition?: number | null
+    clusterUserCount?: number | null
     dialMin?: number
     dialCenter?: number
     dialMax?: number
@@ -137,6 +142,9 @@ const Home = () => {
                             setSelectedStudentName(name)
                         }}
                     />
+
+                    {/* Cluster diagnostics panel — always visible to admin */}
+                    <AdminClusterDiagnosticsPanel />
 
                     {/* Student dashboard – shown when a student is selected */}
                     {selectedStudentId && selectedStudentName && (

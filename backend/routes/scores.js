@@ -61,8 +61,11 @@ router.get('/', asyncRoute(async (req, res) => {
 
         // Get cluster info for each concept
         const { rows: clusterRows } = await pool.query(
-            `SELECT uca.concept_id, uca.cluster_label, uca.percentile_position,
-                    pc.p5, pc.p50, pc.p95
+            `SELECT uca.concept_id, uca.cluster_label, uca.cluster_index,
+                    uca.percentile_position,
+                    pc.p5, pc.p50, pc.p95, pc.user_count,
+                    (SELECT COUNT(*) FROM public.peer_clusters pc2
+                     WHERE pc2.concept_id = uca.concept_id) AS total_clusters
              FROM public.user_cluster_assignments uca
              JOIN public.peer_clusters pc
                ON pc.concept_id = uca.concept_id AND pc.cluster_index = uca.cluster_index
@@ -73,7 +76,10 @@ router.get('/', asyncRoute(async (req, res) => {
         for (const r of clusterRows) {
             clusterInfo[r.concept_id] = {
                 clusterLabel: r.cluster_label,
+                clusterIndex: parseInt(r.cluster_index, 10),
+                totalClusters: parseInt(r.total_clusters, 10),
                 percentilePosition: parseFloat(r.percentile_position) || 50,
+                clusterUserCount: parseInt(r.user_count, 10),
                 dialMin: Math.round(parseFloat(r.p5) * 100) / 100,
                 dialCenter: Math.round(parseFloat(r.p50) * 100) / 100,
                 dialMax: Math.round(parseFloat(r.p95) * 100) / 100
@@ -105,6 +111,10 @@ router.get('/', asyncRoute(async (req, res) => {
             // History breakdown preferred; fall back to previous_aspect_breakdown saved on upsert
             previousBreakdown: yesterdayBreakdowns[row.concept_id] || row.previous_aspect_breakdown || null,
             clusterLabel: clusterInfo[row.concept_id]?.clusterLabel || null,
+            clusterIndex: clusterInfo[row.concept_id]?.clusterIndex ?? null,
+            totalClusters: clusterInfo[row.concept_id]?.totalClusters ?? null,
+            percentilePosition: clusterInfo[row.concept_id]?.percentilePosition ?? null,
+            clusterUserCount: clusterInfo[row.concept_id]?.clusterUserCount ?? null,
             dialMin: clusterInfo[row.concept_id]?.dialMin || 0,
             dialCenter: clusterInfo[row.concept_id]?.dialCenter || 50,
             dialMax: clusterInfo[row.concept_id]?.dialMax || 100,

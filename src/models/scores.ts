@@ -17,6 +17,10 @@ export interface ConceptScore {
     trend: string | null
     yesterdayScore?: number | null
     clusterLabel?: string | null
+    clusterIndex?: number | null
+    totalClusters?: number | null
+    percentilePosition?: number | null
+    clusterUserCount?: number | null
     dialMin: number
     dialCenter: number
     dialMax: number

@@ -18,7 +18,7 @@ export const CONCEPTS = {
         id: 'lms',
         displayName: 'LMS Engagement',
         table: 'lms_sessions',
-        dimensions: ['volume', 'consistency', 'action_mix', 'session_quality']
+        dimensions: ['volume', 'consistency', 'participation_variety', 'session_quality']
     },
     screen_time: {
         id: 'screen_time',
