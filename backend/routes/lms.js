@@ -1,27 +1,64 @@
 // LMS Admin Routes
-// Admin-only endpoints for Moodle connection status and bulk/per-student sync.
-// All routes require admin privileges.
-
 import { Router } from 'express'
+import { randomUUID } from 'crypto'
 import pool from '../config/database.js'
 import logger from '../utils/logger.js'
 import { requireAdmin } from '../middleware/auth.js'
 import { asyncRoute, Errors } from '../utils/errors.js'
 import { verifyConnection, syncUserFromMoodle } from '../services/moodleService.js'
+import pLimit from 'p-limit'
 
 const router = Router()
-
-// All LMS admin routes require admin privileges
 router.use(requireAdmin)
+
+// =============================================================================
+// IN-MEMORY JOB STORE
+// =============================================================================
+// Lost on server restart — admin can re-trigger sync-all if needed.
+
+/** @type {Map<string, {status: string, progress: number, total: number, synced: number, skipped: Array, startedAt: string, completedAt: string|null, error: string|null}>} */
+const syncJobs = new Map()
+
+async function runSyncJob(jobId, users) {
+    const limit = pLimit(5)
+    const job = syncJobs.get(jobId)
+    job.status = 'running'
+
+    const skipped = []
+    let synced = 0
+
+    await Promise.all(
+        users.map(user =>
+            limit(async () => {
+                try {
+                    const result = await syncUserFromMoodle(pool, user.id, user.email)
+                    if (result.skipped) {
+                        skipped.push({ email: user.email, reason: result.reason })
+                        logger.info(`sync-all[${jobId}]: skipped ${user.email} (${result.reason})`)
+                    } else {
+                        synced++
+                        logger.info(`sync-all[${jobId}]: synced ${user.email} — ${result.synced} days`)
+                    }
+                } catch (err) {
+                    logger.error(`sync-all[${jobId}]: error for ${user.email}: ${err.message}`)
+                    skipped.push({ email: user.email, reason: err.message })
+                }
+                job.progress = synced + skipped.length
+            })
+        )
+    )
+
+    job.status = 'complete'
+    job.synced = synced
+    job.skipped = skipped
+    job.completedAt = new Date().toISOString()
+    logger.info(`sync-all[${jobId}]: complete — ${synced} synced, ${skipped.length} skipped`)
+}
 
 // =============================================================================
 // CONNECTION STATUS
 // =============================================================================
 
-/**
- * GET /api/lms/admin/connection-status
- * Returns whether Moodle is configured and reachable.
- */
 router.get('/admin/connection-status', asyncRoute(async (req, res) => {
     const moodleConfigured = !!(process.env.MOODLE_BASE_URL && process.env.MOODLE_TOKEN)
 
@@ -42,18 +79,14 @@ router.get('/admin/connection-status', asyncRoute(async (req, res) => {
 // SYNC STATUS
 // =============================================================================
 
-/**
- * GET /api/lms/admin/sync-status
- * Returns per-student LMS sync status: whether they have real Moodle data and when last synced.
- */
 router.get('/admin/sync-status', asyncRoute(async (req, res) => {
     const { rows } = await pool.query(`
         SELECT
             u.id          AS user_id,
             u.name,
             u.email,
-            MAX(ls.created_at) FILTER (WHERE ls.is_simulated = false)  AS last_sync,
-            COUNT(ls.session_date) FILTER (WHERE ls.is_simulated = false) AS real_count
+            MAX(ls.created_at) FILTER (WHERE ls.is_simulated = false)      AS last_sync,
+            COUNT(ls.session_date) FILTER (WHERE ls.is_simulated = false)  AS real_count
         FROM public.users u
         LEFT JOIN public.lms_sessions ls ON ls.user_id = u.id
         WHERE u.role = 'student'
@@ -61,63 +94,72 @@ router.get('/admin/sync-status', asyncRoute(async (req, res) => {
         ORDER BY u.name
     `)
 
-    const statuses = rows.map(r => ({
-        userId:       r.user_id,
-        name:         r.name,
-        email:        r.email,
+    res.json(rows.map(r => ({
+        userId:        r.user_id,
+        name:          r.name,
+        email:         r.email,
         hasMoodleData: parseInt(r.real_count || 0) > 0,
-        lastSync:     r.last_sync ?? null,
-    }))
-
-    res.json(statuses)
+        lastSync:      r.last_sync ?? null,
+    })))
 }))
 
 // =============================================================================
-// BULK SYNC
+// BULK SYNC — BACKGROUND JOB
 // =============================================================================
 
 /**
  * POST /api/lms/admin/sync-all
- * Syncs all student users from Moodle sequentially.
- * Per-user errors are caught and recorded; the operation never aborts early.
- * Returns { total, synced, skipped: [{ email, reason }] }
+ * Enqueues a background sync of all students. Returns a jobId immediately.
+ * Poll GET /admin/sync-all/status/:jobId for progress.
  */
 router.post('/admin/sync-all', asyncRoute(async (req, res) => {
     const { rows: users } = await pool.query(
         `SELECT id, name, email FROM public.users WHERE role = 'student' ORDER BY name`
     )
 
-    let synced = 0
-    const skipped = []
+    const jobId = randomUUID()
+    syncJobs.set(jobId, {
+        status:      'pending',
+        progress:    0,
+        total:       users.length,
+        synced:      0,
+        skipped:     [],
+        startedAt:   new Date().toISOString(),
+        completedAt: null,
+        error:       null,
+    })
 
-    for (const user of users) {
-        try {
-            const result = await syncUserFromMoodle(pool, user.id, user.email)
-            if (result.skipped) {
-                skipped.push({ email: user.email, reason: result.reason })
-                logger.info(`sync-all: skipped ${user.email} (${result.reason})`)
-            } else {
-                synced++
-                logger.info(`sync-all: synced ${user.email} — ${result.synced} days`)
+    // Fire-and-forget — do not await
+    setImmediate(() => {
+        runSyncJob(jobId, users).catch(err => {
+            const job = syncJobs.get(jobId)
+            if (job) {
+                job.status = 'failed'
+                job.error  = err.message
+                job.completedAt = new Date().toISOString()
             }
-        } catch (err) {
-            logger.error(`sync-all: error for ${user.email}: ${err.message}`)
-            skipped.push({ email: user.email, reason: err.message })
-        }
-    }
+            logger.error(`sync-all[${jobId}]: unexpected failure: ${err.message}`)
+        })
+    })
 
-    res.json({ total: users.length, synced, skipped })
+    logger.info(`sync-all[${jobId}]: queued for ${users.length} students`)
+    res.status(202).json({ jobId, total: users.length, status: 'pending' })
+}))
+
+/**
+ * GET /api/lms/admin/sync-all/status/:jobId
+ * Poll for sync-all job progress.
+ */
+router.get('/admin/sync-all/status/:jobId', asyncRoute(async (req, res) => {
+    const job = syncJobs.get(req.params.jobId)
+    if (!job) throw Errors.NOT_FOUND('Sync job')
+    res.json({ jobId: req.params.jobId, ...job })
 }))
 
 // =============================================================================
 // SINGLE USER SYNC
 // =============================================================================
 
-/**
- * POST /api/lms/admin/sync/:userId
- * Syncs a single student from Moodle.
- * Returns { synced: N, days: [...] } | { skipped: true, reason: string }
- */
 router.post('/admin/sync/:userId', asyncRoute(async (req, res) => {
     const { userId } = req.params
 
@@ -125,14 +167,9 @@ router.post('/admin/sync/:userId', asyncRoute(async (req, res) => {
         `SELECT id, email FROM public.users WHERE id = $1`,
         [userId]
     )
+    if (rows.length === 0) throw Errors.NOT_FOUND('User')
 
-    if (rows.length === 0) {
-        throw Errors.NOT_FOUND('User')
-    }
-
-    const user = rows[0]
-    const result = await syncUserFromMoodle(pool, user.id, user.email)
-
+    const result = await syncUserFromMoodle(pool, rows[0].id, rows[0].email)
     res.json(result)
 }))
 

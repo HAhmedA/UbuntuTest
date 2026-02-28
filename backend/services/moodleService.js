@@ -19,6 +19,7 @@ import { Errors } from '../utils/errors.js'
 import { withTransaction } from '../utils/withTransaction.js'
 import { computeAllScores } from './scoring/index.js'
 import { computeJudgments } from './annotators/lmsAnnotationService.js'
+import pLimit from 'p-limit'
 
 const MAX_FORUM_DISCUSSIONS_PER_SYNC = 50
 
@@ -308,26 +309,32 @@ async function fetchForumPosts(moodleUserId, courses, sinceTimestamp) {
             continue
         }
 
-        for (const discussion of discussionsResp?.discussions ?? []) {
-            let postsResp
-            try {
-                postsResp = await moodleRequest('mod_forum_get_discussion_posts', {
-                    discussionid: discussion.id,
-                })
-            } catch (err) {
-                logger.warn(`fetchForumPosts: skipping discussion ${discussion.id} — ${err.message}`)
-                continue
-            }
+        const discussions = discussionsResp?.discussions ?? []
+        const discussionLimit = pLimit(5)
 
-            for (const post of postsResp?.posts ?? []) {
-                if (post.userid !== moodleUserId) continue
-                if (post.created < sinceTimestamp) continue
-
-                posts.push({
-                    date:         tsToDate(post.created),
-                    discussionid: discussion.id,
+        const discussionResults = await Promise.all(
+            discussions.map(discussion =>
+                discussionLimit(async () => {
+                    try {
+                        const postsResp = await moodleRequest('mod_forum_get_discussion_posts', {
+                            discussionid: discussion.id,
+                        })
+                        return (postsResp?.posts ?? [])
+                            .filter(post => post.userid === moodleUserId && post.created >= sinceTimestamp)
+                            .map(post => ({
+                                date:         tsToDate(post.created),
+                                discussionid: discussion.id,
+                            }))
+                    } catch (err) {
+                        logger.warn(`fetchForumPosts: skipping discussion ${discussion.id} — ${err.message}`)
+                        return []
+                    }
                 })
-            }
+            )
+        )
+
+        for (const result of discussionResults) {
+            posts.push(...result)
         }
     }
     return posts
