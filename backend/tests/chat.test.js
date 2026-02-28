@@ -24,6 +24,7 @@ const mockGetOrCreateSession   = jest.fn()
 const mockResetSession         = jest.fn()
 const mockLogError             = jest.fn()
 const mockLogInfo              = jest.fn()
+const mockQuery                = jest.fn()
 
 // ── ESM module mocks ──────────────────────────────────────────────────────────
 jest.unstable_mockModule('../services/contextManagerService.js', () => ({
@@ -36,6 +37,9 @@ jest.unstable_mockModule('../services/contextManagerService.js', () => ({
 }))
 jest.unstable_mockModule('../utils/logger.js', () => ({
     default: { info: mockLogInfo, error: mockLogError, warn: jest.fn(), debug: jest.fn() }
+}))
+jest.unstable_mockModule('../config/database.js', () => ({
+    default: { query: mockQuery }
 }))
 
 // ── Dynamic import after mocks ─────────────────────────────────────────────────
@@ -66,6 +70,7 @@ beforeEach(() => {
     mockGetOrCreateSession.mockReset()
     mockResetSession.mockReset()
     mockLogError.mockReset()
+    mockQuery.mockReset()
 })
 
 // ── Authentication tests ───────────────────────────────────────────────────────
@@ -208,5 +213,33 @@ describe('POST /api/chat/reset', () => {
         expect(res.status).toBe(200)
         expect(res.body.greeting).toBe('Fresh start!')
         expect(res.body.success).toBe(true)
+    })
+})
+
+// ── Security regression: SEC-08 / CRIT-T2 ─────────────────────────────────────
+// GET /history must enforce session ownership — user A cannot read user B's session.
+// If this test fails, the ownership SQL check has been removed — do not merge.
+describe('GET /api/chat/history — IDOR ownership (CRIT-T2)', () => {
+    test('returns 403 when sessionId belongs to a different user', async () => {
+        // DB returns no rows → session exists but does not belong to req.session.user.id
+        mockQuery.mockResolvedValue({ rows: [] })
+
+        const res = await request(authApp)
+            .get('/api/chat/history?sessionId=another-users-session-uuid')
+        expect(res.status).toBe(403)
+        expect(res.body.error).toBe('forbidden')
+    })
+
+    test('returns messages when sessionId belongs to the authenticated user', async () => {
+        // DB returns a row → ownership confirmed
+        mockQuery.mockResolvedValue({ rows: [{ id: 'sess-123' }] })
+        mockGetSessionHistory.mockResolvedValue([
+            { id: 'msg-1', role: 'assistant', content: 'Hello!', created_at: '2026-01-01' }
+        ])
+
+        const res = await request(authApp)
+            .get('/api/chat/history?sessionId=sess-123')
+        expect(res.status).toBe(200)
+        expect(res.body.messages).toHaveLength(1)
     })
 })
