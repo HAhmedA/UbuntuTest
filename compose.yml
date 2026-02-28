@@ -24,6 +24,7 @@ services:
       - PGUSER=postgres
       - PGPASSWORD=${PGPASSWORD}
       - PGDATABASE=postgres
+      - DATABASE_URL=postgres://${PGUSER:-postgres}:${PGPASSWORD}@postgres:5432/${PGDATABASE:-postgres}
       - DEBUG_LLM=true
       - MOODLE_BASE_URL=http://host.docker.internal:8888/moodle501
       - MOODLE_TOKEN=${MOODLE_TOKEN:-}
@@ -49,7 +50,6 @@ services:
     # (data directory layout changed). Wipe the volume before upgrading:
     #   docker compose down -v && docker compose up -d
     volumes:
-      - ./postgres/initdb:/docker-entrypoint-initdb.d # mount init SQL scripts
       - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]

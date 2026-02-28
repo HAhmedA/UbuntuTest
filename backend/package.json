@@ -5,7 +5,9 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node-pg-migrate up -m migrations --envPath ../.env && node server.js",
+    "migrate": "node-pg-migrate up -m migrations --envPath ../.env",
+    "migrate:down": "node-pg-migrate down -m migrations --envPath ../.env",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "dependencies": {
@@ -18,6 +20,7 @@
     "express-validator": "^7.2.0",
     "helmet": "^8.1.0",
     "node-cron": "^4.2.1",
+    "node-pg-migrate": "^8.0.4",
     "p-limit": "^7.3.0",
     "pg": "^8.12.0",
     "swagger-jsdoc": "^6.2.8",
