@@ -193,10 +193,27 @@ async function computeClusterScores(dbPool, conceptId, userId, days = 7) {
     logger.info(`${conceptId}: K=${k}, cov=${covType} for ${userIds.length} users`);
 
     // Compute and store diagnostics (fire-and-forget — does not block scoring)
+    // Silhouette/Davies-Bouldin are O(N²). Cap to 100 random samples so cost is
+    // bounded at ~10K comparisons regardless of cohort size. nUsers still reflects
+    // the real cohort size so the admin panel shows accurate context.
     {
-        const silhouette = computeSilhouetteScore(centered, model.assignments, k);
-        const daviesBouldin = computeDaviesBouldinIndex(centered, model.assignments, k, model.means);
-        const clusterSizes = [];
+        const DIAG_SAMPLE = 100;
+        const nAll = centered.length;
+        let sampledCentered, sampledAssignments;
+        if (nAll <= DIAG_SAMPLE) {
+            sampledCentered    = centered;
+            sampledAssignments = model.assignments;
+        } else {
+            const indices = Array.from({ length: DIAG_SAMPLE }, () =>
+                Math.floor(Math.random() * nAll)
+            );
+            sampledCentered    = indices.map(i => centered[i]);
+            sampledAssignments = indices.map(i => model.assignments[i]);
+        }
+
+        const silhouette    = computeSilhouetteScore(sampledCentered, sampledAssignments, k);
+        const daviesBouldin = computeDaviesBouldinIndex(sampledCentered, sampledAssignments, k, model.means);
+        const clusterSizes  = [];
         for (let c = 0; c < k; c++) {
             clusterSizes.push(model.assignments.filter(a => a === c).length);
         }
@@ -205,7 +222,7 @@ async function computeClusterScores(dbPool, conceptId, userId, days = 7) {
             daviesBouldin,
             diagnostics,
             clusterSizes,
-            nUsers: userIds.length,
+            nUsers: userIds.length,       // real count, not sample
             nDimensions: dimKeys.length
         }).catch(err => logger.error(`storeDiagnostics fire-and-forget error: ${err.message}`));
     }
