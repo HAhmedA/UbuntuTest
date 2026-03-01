@@ -59,7 +59,9 @@ beforeEach(() => {
     mockQuery.mockReset()
     mockVerifyConnection.mockReset()
     mockSyncUserFromMoodle.mockReset()
+    mockLogInfo.mockReset()
     mockLogError.mockReset()
+    mockLogWarn.mockReset()
     // Ensure Moodle env vars are clean before each test
     delete process.env.MOODLE_BASE_URL
     delete process.env.MOODLE_TOKEN
@@ -101,6 +103,7 @@ describe('GET /api/lms/admin/connection-status', () => {
         expect(res.status).toBe(200)
         expect(res.body.connected).toBe(true)
         expect(res.body.sitename).toBe('Test Moodle')
+        expect(res.body.username).toBe('admin')
         expect(res.body.moodleConfigured).toBe(true)
     })
 
