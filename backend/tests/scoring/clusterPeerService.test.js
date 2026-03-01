@@ -187,6 +187,8 @@ describe('computeClusterScores — normal path (lms, 15 users)', () => {
 
         await expect(computeClusterScores(null, 'lms', TARGET_USER))
             .resolves.toMatchObject({ clusterLabel: expect.any(String) })
+        await new Promise(resolve => setImmediate(resolve))
+        expect(mockLogError).toHaveBeenCalledWith(expect.stringContaining('storeDiagnostics fire-and-forget error'))
     })
 })
 
