@@ -225,15 +225,15 @@ async function assemblePrompt(userId, sessionId, userMessage = null) {
     let currentTokens = estimateTokens(baseSystemPrompt)
     let assembledContext = baseSystemPrompt
 
-    // 2. Context Sections (Prioritized: User Context > Annotations > Summary > Summaries)
+    // 2. Context Sections (Prioritized: User Context > Scores+Annotations > Summaries)
     const contextSections = [
         { name: 'USER CONTEXT & PREFERENCES', content: userContext, priority: 1 },
         { name: 'CURRENT SESSION', content: userType, priority: 1 },
+        { name: 'STUDENT DATA SUMMARY (scores)', content: conceptScores, priority: 2 },
         { name: 'ANNOTATED QUESTIONNAIRE INSIGHTS (SRL Data)', content: srlAnnotations, priority: 2 },
         { name: 'SLEEP ANALYSIS', content: sleepAnnotations, priority: 2 },
         { name: 'SCREEN TIME ANALYSIS', content: screenTimeAnnotations, priority: 2 },
         { name: 'LMS ACTIVITY ANALYSIS', content: lmsAnnotations, priority: 2 },
-        { name: 'STUDENT DATA SUMMARY (scores)', content: conceptScores, priority: 3 },
         { name: 'PREVIOUS CHATS (SUMMARIZED)', content: summaries, priority: 4 }
     ]
 
@@ -359,6 +359,9 @@ async function assembleInitialGreetingPrompt(userId) {
 USER CONTEXT & PREFERENCES:
 ${userContext}
 
+STUDENT DATA SUMMARY (scores):
+${conceptScores}
+
 ANNOTATED QUESTIONNAIRE INSIGHTS (SRL Data):
 ${srlAnnotations}
 
@@ -370,9 +373,6 @@ ${screenTimeAnnotations}
 
 LMS ACTIVITY ANALYSIS:
 ${lmsAnnotations}
-
-STUDENT DATA SUMMARY (scores):
-${conceptScores}
 
 PREVIOUS CHATS (SUMMARIZED):
 ${summaries}

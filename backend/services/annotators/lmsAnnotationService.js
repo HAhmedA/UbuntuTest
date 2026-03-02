@@ -408,7 +408,7 @@ async function getJudgmentsForChatbot(pool, userId) {
     // Fetch last 7 days of LMS sessions
     const { rows: sessions } = await pool.query(
         `SELECT session_date, total_active_minutes, number_of_sessions,
-                reading_minutes, watching_minutes
+                exercise_practice_events, assignment_work_events, forum_posts
          FROM public.lms_sessions
          WHERE user_id = $1
          ORDER BY session_date DESC
@@ -450,14 +450,22 @@ async function getJudgmentsForChatbot(pool, userId) {
     const totalActive = sessions.reduce((s, r) => s + (r.total_active_minutes || 0), 0);
     const totalSessions = sessions.reduce((s, r) => s + (r.number_of_sessions || 0), 0);
     const activeDays = new Set(sessions.map(s => s.session_date)).size;
-    const totalPassive = sessions.reduce((s, r) => s + (r.reading_minutes || 0) + (r.watching_minutes || 0), 0);
-    const activePercent = totalActive > 0 ? Math.round(((totalActive - totalPassive) / totalActive) * 100) : 0;
+    const quizEvents = sessions.reduce((s, r) => s + (r.exercise_practice_events || 0), 0);
+    const assignEvents = sessions.reduce((s, r) => s + (r.assignment_work_events || 0), 0);
+    const forumPosts = sessions.reduce((s, r) => s + (r.forum_posts || 0), 0);
+
+    // Participation variety: breadth of tool usage (quizzes, assignments, forum)
+    const toolCount = (quizEvents > 0 ? 1 : 0) + (assignEvents > 0 ? 1 : 0) + (forumPosts > 0 ? 1 : 0);
+    const participationLabel = toolCount === 0 ? 'No active LMS tools used'
+        : toolCount === 1 ? 'Only one type of LMS activity recorded'
+        : toolCount === 2 ? 'Two types of LMS activity recorded'
+        : 'All three LMS activity types used';
 
     result += `### Past 7 days:\n`;
     result += `- Active days: ${activeDays}/7\n`;
     result += `- Total active time: ${toMin(totalActive)}\n`;
     result += `- Total sessions: ${totalSessions}\n`;
-    result += `- Active vs. passive: ${activePercent}% active engagement\n`;
+    result += `- Activity breadth: ${participationLabel} (quizzes: ${quizEvents}, assignments: ${assignEvents}, forum posts: ${forumPosts})\n`;
 
     return result;
 }

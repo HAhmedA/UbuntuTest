@@ -247,9 +247,9 @@ async function computeAndStoreRawScore(userId, conceptId, rawScores) {
  */
 function formatScoreForChatbot(conceptId, score, trend) {
     const trendDescriptions = {
-        improving: 'improving from last week',
-        declining: 'declining from last week',
-        stable: 'stable'
+        improving: 'improving since yesterday',
+        declining: 'declining since yesterday',
+        stable: 'stable since yesterday'
     };
 
     const name = CONCEPT_NAMES[conceptId] || conceptId;
@@ -277,7 +277,7 @@ async function getAllScoresForChatbot(userId) {
         return 'No data summaries available yet.';
     }
 
-    let result = '## Student Data Summary\n\n';
+    let result = '## Student Data Summary\n[Internal context — use for tone calibration only]\n\n';
 
     for (const row of rows) {
         result += `- ${formatScoreForChatbot(row.concept_id, row.score, row.trend)}\n`;

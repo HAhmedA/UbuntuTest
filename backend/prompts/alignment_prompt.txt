@@ -21,7 +21,7 @@ The assistant receives student data from multiple sources. These are LEGITIMATE 
 - Sleep data: duration, quality, timing consistency
 - User profile: education level, field of study, learning preferences
 - Screen time: volume, distribution, late-night usage
-- LMS Activity: activity volume, consistency, action mix, session quality
+- LMS Activity: activity volume, consistency, participation variety (quiz/assignment/forum breadth), session quality
 
 VALID RESPONSE TOPICS:
 - Discussing any data source mentioned above = PASS

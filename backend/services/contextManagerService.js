@@ -183,7 +183,10 @@ function parseFollowUpSuggestions(response) {
     }
 
     // Remove the followups block from the response
-    const cleanedResponse = response.replace(/<followups>[\s\S]*?<\/followups>/i, '').trim()
+    let cleanedResponse = response.replace(/<followups>[\s\S]*?<\/followups>/i, '').trim()
+
+    // Strip any orphaned <suggestion> tags that leaked outside the block
+    cleanedResponse = cleanedResponse.replace(/<\/?suggestion>/gi, '').trim()
 
     return { cleanedResponse, suggestions }
 }
