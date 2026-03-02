@@ -1,0 +1,7 @@
+# Caddyfile — production HTTPS entrypoint
+# Set DOMAIN=yourdomain.com in your server's .env before deploying.
+# Caddy automatically obtains and renews a Let's Encrypt certificate.
+
+{$DOMAIN} {
+    reverse_proxy web:80
+}
