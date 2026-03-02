@@ -26,12 +26,42 @@ const BASELINE_BY_PROFILE = {
     low_achiever:  { minutes: 45,  sessions: 1, daysActive: 2 },
 }
 
+/** Shift a 'YYYY-MM-DD' date string by `delta` days (negative = earlier). */
+function shiftDate(dateStr, delta) {
+    const d = new Date(dateStr + 'T12:00:00Z')
+    d.setUTCDate(d.getUTCDate() + delta)
+    return d.toISOString().slice(0, 10)
+}
+
 async function seedUser(userId, email, profile) {
     console.log(`  [${email}] profile=${profile}`)
 
-    // 1. Generate 40 days of mock REST-shaped data
-    const { quizAttempts, assignments, forumPosts } = generateMockRestData(profile, DAYS)
-    const dailyRows = aggregateToDaily({ quizAttempts, assignments, forumPosts })
+    // 1. Generate data in weekly chunks so activeDaysPerWeek applies per-week (not total).
+    //    generateMockRestData treats activeDaysPerWeek as a total count across 'days', so
+    //    calling with days=7 per chunk produces correct weekly-density data.
+    const NUM_WEEKS = Math.ceil(DAYS / 7)   // 6 chunks covers 42 days
+    const allQuizAttempts = []
+    const allAssignments  = []
+    const allForumPosts   = []
+
+    for (let week = 0; week < NUM_WEEKS; week++) {
+        const { quizAttempts: wq, assignments: wa, forumPosts: wf } = generateMockRestData(profile, 7)
+        const offsetDays = week * 7
+        allQuizAttempts.push(...wq.map(a => ({
+            ...a,
+            date:       shiftDate(a.date, -offsetDays),
+            timestart:  a.timestart  - offsetDays * 86400,
+            timefinish: a.timefinish - offsetDays * 86400,
+        })))
+        allAssignments.push(...wa.map(a => ({ ...a, date: shiftDate(a.date, -offsetDays) })))
+        allForumPosts.push(...wf.map(p => ({ ...p, date: shiftDate(p.date, -offsetDays) })))
+    }
+
+    const dailyRows = aggregateToDaily({
+        quizAttempts: allQuizAttempts,
+        assignments:  allAssignments,
+        forumPosts:   allForumPosts,
+    })
 
     if (dailyRows.length === 0) {
         console.log(`    ✗ No rows generated — skipping`)
