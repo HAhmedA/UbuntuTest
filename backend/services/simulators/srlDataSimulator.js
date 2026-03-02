@@ -281,10 +281,11 @@ async function generateSRLData(pool, userId, profile, days = 14) {
         const answers = generateAnswers(profile, conceptBiases, date, dayIndex, days);
         const questionnaireId = randomUUID();
 
-        // 1. Insert questionnaire_results
+        // 1. Insert questionnaire_results (flagged as simulated so it is excluded from
+        //    the "have you submitted today?" check in the reminder banner)
         await pool.query(
-            `INSERT INTO public.questionnaire_results (id, postid, user_id, created_at, answers)
-             VALUES ($1, $2, $3, $4, $5)`,
+            `INSERT INTO public.questionnaire_results (id, postid, user_id, created_at, answers, is_simulated)
+             VALUES ($1, $2, $3, $4, $5, true)`,
             [questionnaireId, surveyId, userId, date, JSON.stringify(answers)]
         );
 

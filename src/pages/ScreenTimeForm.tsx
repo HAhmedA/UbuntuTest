@@ -19,6 +19,7 @@ const VOLUME_OPTIONS = [
 ]
 
 const LONGEST_SESSION_OPTIONS = [
+    { label: 'None', value: 0 },
     { label: '< 15 min', value: 10 },
     { label: '15–30 min', value: 22 },
     { label: '30–60 min', value: 45 },
@@ -56,6 +57,9 @@ const ScreenTimeForm = () => {
 
     const isReadonly = savedEntry !== null
     const isComplete = totalMinutes !== null && longestSession !== null && preSleepMinutes !== null
+    // A longest session longer than the total time is a logical contradiction
+    const sessionExceedsTotal = longestSession !== null && totalMinutes !== null && longestSession > totalMinutes
+    const isLogicallyValid = !sessionExceedsTotal
 
     // Fetch today's entry on mount
     useEffect(() => {
@@ -194,6 +198,12 @@ const ScreenTimeForm = () => {
                                 </div>
                             </div>
 
+                            {sessionExceedsTotal && (
+                                <p className='st-validation-warning'>
+                                    Your longest session can't be longer than your total screen time. Please adjust one of your answers.
+                                </p>
+                            )}
+
                             <div className='st-divider' />
 
                             {/* Q3: Pre-sleep screen time */}
@@ -228,7 +238,7 @@ const ScreenTimeForm = () => {
                                 <button
                                     className='st-submit-btn'
                                     onClick={handleSubmit}
-                                    disabled={submitting || !isComplete}
+                                    disabled={submitting || !isComplete || !isLogicallyValid}
                                 >
                                     {submitting ? 'Saving…' : '💾 Save'}
                                 </button>

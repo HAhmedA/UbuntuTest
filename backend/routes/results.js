@@ -9,6 +9,17 @@ import { asyncRoute } from '../utils/errors.js'
 
 const router = Router()
 
+// GET /results/today — returns { submitted: boolean } for today's SRL survey
+router.get('/results/today', asyncRoute(async (req, res) => {
+    const userId = req.session.user?.id || null
+    if (!userId) return res.json({ submitted: false })
+    const { rows } = await pool.query(
+        'SELECT id FROM public.questionnaire_results WHERE user_id = $1 AND DATE(created_at) = CURRENT_DATE AND is_simulated = false LIMIT 1',
+        [userId]
+    )
+    res.json({ submitted: rows.length > 0 })
+}))
+
 // Post new result
 router.post('/post', asyncRoute(async (req, res) => {
     const { postId, surveyResult } = req.body || {}

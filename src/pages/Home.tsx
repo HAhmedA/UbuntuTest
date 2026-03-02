@@ -10,6 +10,7 @@ import { load } from '../redux/surveys'
 import { getScores } from '../api/scores'
 import { getTodaySleep } from '../api/sleep'
 import { getTodayScreenTime } from '../api/screenTime'
+import { getTodaySRL } from '../api/results'
 import './Home.css'
 
 interface ConceptScore {
@@ -59,6 +60,7 @@ const Home = () => {
     // Submission reminder state (only for non-admin students)
     const [missingSleepLog, setMissingSleepLog] = useState(false)
     const [missingScreenTime, setMissingScreenTime] = useState(false)
+    const [missingSRLSurvey, setMissingSRLSurvey] = useState(false)
     const [reminderDismissed, setReminderDismissed] = useState(false)
 
     // Load surveys if not already loaded
@@ -104,16 +106,19 @@ const Home = () => {
         }
     }, [isAdmin, user])
 
-    // Check whether today's sleep log and screen time have been submitted (students only)
+    // Check whether today's sleep log, screen time, and SRL survey have been submitted (students only).
+    // Uses allSettled so one failing call doesn't silently block the others.
     useEffect(() => {
         if (isAdmin || !user) return
-        Promise.all([
+        Promise.allSettled([
             getTodaySleep(),
-            getTodayScreenTime()
-        ]).then(([sleepEntry, screenEntry]) => {
-            setMissingSleepLog(!sleepEntry)
-            setMissingScreenTime(!screenEntry)
-        }).catch(() => { /* ignore network errors silently */ })
+            getTodayScreenTime(),
+            getTodaySRL()
+        ]).then(([sleepResult, screenResult, srlResult]) => {
+            if (sleepResult.status === 'fulfilled') setMissingSleepLog(!sleepResult.value)
+            if (screenResult.status === 'fulfilled') setMissingScreenTime(!screenResult.value)
+            if (srlResult.status === 'fulfilled') setMissingSRLSurvey(!srlResult.value)
+        })
     }, [isAdmin, user])
 
     // Add class to parent main element for mood layout
@@ -184,7 +189,7 @@ const Home = () => {
         <div className='mood-home-wrapper'>
             <div className='mood-home-container'>
                 {/* Submission reminder banner — top of page */}
-                {!reminderDismissed && (missingSleepLog || missingScreenTime) && (
+                {!reminderDismissed && (missingSleepLog || missingScreenTime || missingSRLSurvey) && (
                     <div className='reminder-banner'>
                         <div className='reminder-content'>
                             <span className='reminder-icon'>⚠</span>
@@ -197,6 +202,9 @@ const Home = () => {
                             )}
                             {missingScreenTime && (
                                 <Link to="/screen-time" className='reminder-link'>Screen time →</Link>
+                            )}
+                            {missingSRLSurvey && firstSurvey && (
+                                <Link to={`/run/${firstSurvey.id}`} className='reminder-link'>SRL survey →</Link>
                             )}
                         </div>
                         <button

@@ -203,6 +203,17 @@
     color: #DC2626;
 }
 
+.st-validation-warning {
+    margin: 8px 0 0;
+    padding: 8px 12px;
+    background: #FEF3C7;
+    border: 1px solid #F59E0B;
+    border-radius: 6px;
+    color: #92400E;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
 /* ── Read-only summary ───────────────────────────────────── */
 
 .st-readonly-badge {

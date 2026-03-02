@@ -34,33 +34,13 @@ const Run = () => {
             
             const model = new Model(surveyJson)
             
-            // Set SurveyJS theme color
-            model.css = {
-                primary: '#850b0b',
-                primaryForeground: '#ffffff',
-                primaryLight: '#ffeaea'
-            }
-            
-            // Set required text message
             model.requiredText = '*'
-            
-            // Ensure validation prevents incomplete submissions
             model.showProgressBar = 'bottom'
             model.showQuestionNumbers = 'on'
-            
-            model
-                .onComplete
-                .add(async (sender: Model) => {
-                    await dispatch(post({postId: id as string, surveyResult: sender.data, surveyResultText: JSON.stringify(sender.data)}))
-                    // Navigate to home page
-                    navigate('/')
-                })
-            
-            // Prevent completion if any required question is not answered
-            model.onValidateQuestion.add((sender, options) => {
-                if (options.question.isRequired && !options.value) {
-                    options.error = 'This question is required'
-                }
+
+            model.onComplete.add(async (sender: Model) => {
+                await dispatch(post({postId: id as string, surveyResult: sender.data, surveyResultText: JSON.stringify(sender.data)}))
+                navigate('/')
             })
             
             surveyModelSet(model)
