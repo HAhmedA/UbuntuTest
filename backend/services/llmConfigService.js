@@ -8,7 +8,7 @@ const CACHE_TTL_MS = 60_000
 function envFallback() {
     return {
         provider:    process.env.LLM_PROVIDER    || 'lmstudio',
-        baseUrl:     process.env.LLM_BASE_URL     || 'http://host.docker.internal:1234',
+        baseUrl:     process.env.LLM_BASE_URL     || 'http://host.docker.internal:1234/v1',
         mainModel:   process.env.LLM_MAIN_MODEL   || 'hermes-3-llama-3.2-3b',
         judgeModel:  process.env.LLM_JUDGE_MODEL  || 'qwen2.5-3b-instruct',
         maxTokens:   parseInt(process.env.LLM_MAX_TOKENS  || '2000', 10),

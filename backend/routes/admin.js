@@ -398,7 +398,7 @@ router.post('/llm-config/test', asyncRoute(async (req, res) => {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-        const response = await fetch(`${resolvedBaseUrl}/v1/models`, {
+        const response = await fetch(`${resolvedBaseUrl}/models`, {
             method: 'GET', headers, signal: controller.signal
         })
         clearTimeout(timeoutId)

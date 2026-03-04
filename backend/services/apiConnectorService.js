@@ -21,7 +21,7 @@ async function chatCompletion(messages, options = {}) {
     const maxTokens = options.maxTokens || config.maxTokens
     const temperature = options.temperature ?? config.temperature
 
-    const endpoint = `${config.baseUrl}/v1/chat/completions`
+    const endpoint = `${config.baseUrl}/chat/completions`
 
     const requestBody = {
         model,
@@ -124,9 +124,9 @@ async function checkAvailability() {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
 
-        logger.info(`Checking LLM availability at ${config.baseUrl}/v1/models`)
+        logger.info(`Checking LLM availability at ${config.baseUrl}/models`)
 
-        const response = await fetch(`${config.baseUrl}/v1/models`, {
+        const response = await fetch(`${config.baseUrl}/models`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             signal: controller.signal
