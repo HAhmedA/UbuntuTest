@@ -1,6 +1,10 @@
 import pool from '../config/database.js'
 import logger from '../utils/logger.js'
 
+let _cache = null
+let _cacheExpiry = 0
+const CACHE_TTL_MS = 60_000
+
 function envFallback() {
     return {
         provider:    process.env.LLM_PROVIDER    || 'lmstudio',
@@ -14,7 +18,15 @@ function envFallback() {
     }
 }
 
+/** Exposed only for unit tests — resets the in-memory cache. */
+export function _resetCacheForTesting() {
+    _cache = null
+    _cacheExpiry = 0
+}
+
 export async function getLlmConfig() {
+    if (_cache && Date.now() < _cacheExpiry) return _cache
+
     try {
         const { rows } = await pool.query(
             `SELECT provider, base_url, main_model, judge_model,
@@ -23,10 +35,15 @@ export async function getLlmConfig() {
              ORDER BY updated_at DESC LIMIT 1`
         )
 
-        if (rows.length === 0) return envFallback()
+        if (rows.length === 0) {
+            const result = envFallback()
+            _cache = result
+            _cacheExpiry = Date.now() + CACHE_TTL_MS
+            return result
+        }
 
         const row = rows[0]
-        return {
+        const result = {
             provider:    row.provider,
             baseUrl:     row.base_url,
             mainModel:   row.main_model,
@@ -36,6 +53,9 @@ export async function getLlmConfig() {
             timeoutMs:   row.timeout_ms,
             apiKey:      row.api_key ?? ''
         }
+        _cache = result
+        _cacheExpiry = Date.now() + CACHE_TTL_MS
+        return result
     } catch (err) {
         logger.warn('getLlmConfig: DB error, falling back to env vars:', err.message)
         return envFallback()

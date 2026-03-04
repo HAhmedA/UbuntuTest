@@ -9,10 +9,13 @@ jest.unstable_mockModule('../utils/logger.js', () => ({
     default: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }
 }))
 
-const { getLlmConfig } = await import('../services/llmConfigService.js')
+const { getLlmConfig, _resetCacheForTesting } = await import('../services/llmConfigService.js')
 
 describe('getLlmConfig', () => {
-    beforeEach(() => jest.clearAllMocks())
+    beforeEach(() => {
+        jest.clearAllMocks()
+        _resetCacheForTesting()
+    })
 
     it('returns DB row when one exists', async () => {
         mockQuery.mockResolvedValueOnce({
