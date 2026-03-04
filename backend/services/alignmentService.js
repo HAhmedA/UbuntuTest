@@ -7,7 +7,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import pool from '../config/database.js'
 import logger from '../utils/logger.js'
-import { chatCompletion, llmConfig } from './apiConnectorService.js'
+import { chatCompletion, getLlmConfig } from './apiConnectorService.js'
 
 // Configuration
 const MAX_ALIGNMENT_RETRIES = 1
@@ -146,8 +146,9 @@ Output ONLY valid JSON: {"passed": true, "reason": "..."} or {"passed": false, "
             { role: 'user', content: evaluationContent }
         ]
 
+        const { judgeModel } = await getLlmConfig()
         const judgeResponse = await chatCompletion(messages, {
-            model: llmConfig.judgeModel,
+            model: judgeModel,
             maxTokens: 150,
             temperature: 0.0
         })
