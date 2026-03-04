@@ -16,6 +16,10 @@ COPY . .
 ARG REACT_APP_API_BASE
 ENV REACT_APP_API_BASE=${REACT_APP_API_BASE}
 
+# PUBLIC_URL sets the base path for static assets (used for subpath deployments)
+ARG PUBLIC_URL=""
+ENV PUBLIC_URL=${PUBLIC_URL}
+
 # Build production bundle
 RUN npm run build
 

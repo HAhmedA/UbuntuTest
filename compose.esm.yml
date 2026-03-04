@@ -1,0 +1,87 @@
+# Standalone production deployment for /esm/ subpath
+# External nginx is expected to:
+#   1. Receive requests at /esm/...
+#   2. Strip /esm prefix
+#   3. Proxy to port 3007
+#
+# Usage: docker compose -f compose.esm.yml up -d --build
+# Required .env: SESSION_SECRET, PGPASSWORD
+# Optional .env: MOODLE_BASE_URL, MOODLE_TOKEN
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # PUBLIC_URL sets asset paths (links, scripts) to include /esm prefix
+        PUBLIC_URL: "/esm"
+        # API base for frontend axios calls
+        REACT_APP_API_BASE: "/esm/api"
+    ports:
+      - "3007:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - SESSION_SECRET=${SESSION_SECRET}
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGPASSWORD=${PGPASSWORD}
+      - PGDATABASE=postgres
+      - DATABASE_URL=postgres://postgres:${PGPASSWORD}@postgres:5432/postgres
+      - DEBUG_LLM=false
+      - SIMULATION_MODE=false
+      - MOODLE_BASE_URL=${MOODLE_BASE_URL:-}
+      - MOODLE_TOKEN=${MOODLE_TOKEN:-}
+      - NODE_OPTIONS=--dns-result-order=ipv4first
+    # No host port exposure - only accessible via internal nginx proxy
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    volumes:
+      - logs:/app/logs
+
+  postgres:
+    image: postgres:18.0
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${PGPASSWORD}
+      - POSTGRES_DB=postgres
+    # No host port exposure in production
+    expose:
+      - "5432"
+    volumes:
+      - pgdata_esm:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+networks:
+  default:
+    name: esm-net
+
+volumes:
+  pgdata_esm:
+    driver: local
+  logs:
+    driver: local
