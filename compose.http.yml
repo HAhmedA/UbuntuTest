@@ -1,0 +1,41 @@
+# For EC2 with no domain — plain HTTP, Docker nginx exposed directly on port 80.
+# Usage: docker compose -f compose.yml -f compose.http.yml up -d --build
+
+services:
+  web:
+    ports:
+      - "80:80"
+
+  backend:
+    ports: []
+    environment:
+      - NODE_ENV=production
+      - DEBUG_LLM=false
+      - SIMULATION_MODE=false
+      - CORS_ORIGINS=http://${EC2_HOST}
+      - MOODLE_BASE_URL=${MOODLE_BASE_URL:-}
+      - LLM_PROVIDER=${LLM_PROVIDER:-lmstudio}
+      - LLM_BASE_URL=${LLM_BASE_URL:-}
+      - LLM_MAIN_MODEL=${LLM_MAIN_MODEL:-}
+      - LLM_API_KEY=${LLM_API_KEY:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    volumes:
+      - logs:/app/logs
+
+  postgres:
+    ports: []
+    # Tune postgres for 1 GB RAM (t2.micro)
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c effective_cache_size=256MB
+      -c max_connections=30
+
+volumes:
+  logs:
+    driver: local
