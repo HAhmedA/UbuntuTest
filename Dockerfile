@@ -20,7 +20,8 @@ ENV REACT_APP_API_BASE=${REACT_APP_API_BASE}
 ARG PUBLIC_URL=""
 ENV PUBLIC_URL=${PUBLIC_URL}
 
-# Build production bundle
+# Build production bundle — cap Node heap for 1 GB RAM hosts (e.g. t2.micro)
+ENV NODE_OPTIONS=--max_old_space_size=400
 RUN npm run build
 
 # Stage 2: Runtime - serve static files via nginx
