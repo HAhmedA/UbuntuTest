@@ -320,9 +320,6 @@ function validateLlmConfigBody(body) {
 
 router.get('/llm-config', asyncRoute(async (req, res) => {
     const cfg = await getLlmConfig()
-    const { rows } = await pool.query(
-        'SELECT updated_at FROM public.llm_config ORDER BY updated_at DESC LIMIT 1'
-    )
     res.json({
         provider:    cfg.provider,
         baseUrl:     cfg.baseUrl,
@@ -332,7 +329,7 @@ router.get('/llm-config', asyncRoute(async (req, res) => {
         temperature: cfg.temperature,
         timeoutMs:   cfg.timeoutMs,
         apiKey:      cfg.apiKey ? MASK : '',
-        updatedAt:   rows[0]?.updated_at ?? null
+        updatedAt:   cfg.updatedAt ?? null
     })
 }))
 
@@ -383,6 +380,14 @@ router.post('/llm-config/test', asyncRoute(async (req, res) => {
         apiKey = current.apiKey
     }
 
+    // Validate baseUrl to prevent SSRF
+    const resolvedBaseUrl = baseUrl
+    try {
+        new URL(resolvedBaseUrl)
+    } catch {
+        return res.status(400).json({ success: false, error: 'baseUrl must be a valid URL' })
+    }
+
     const headers = { 'Content-Type': 'application/json' }
     if (apiKey && provider !== 'lmstudio') {
         headers['Authorization'] = `Bearer ${apiKey}`
@@ -393,7 +398,7 @@ router.post('/llm-config/test', asyncRoute(async (req, res) => {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-        const response = await fetch(`${baseUrl}/v1/models`, {
+        const response = await fetch(`${resolvedBaseUrl}/v1/models`, {
             method: 'GET', headers, signal: controller.signal
         })
         clearTimeout(timeoutId)

@@ -14,7 +14,8 @@ function envFallback() {
         maxTokens:   parseInt(process.env.LLM_MAX_TOKENS  || '2000', 10),
         temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7'),
         timeoutMs:   parseInt(process.env.LLM_TIMEOUT_MS  || '30000', 10),
-        apiKey:      process.env.LLM_API_KEY       || ''
+        apiKey:      process.env.LLM_API_KEY       || '',
+        updatedAt:   null
     }
 }
 
@@ -30,7 +31,7 @@ export async function getLlmConfig() {
     try {
         const { rows } = await pool.query(
             `SELECT provider, base_url, main_model, judge_model,
-                    max_tokens, temperature, timeout_ms, api_key
+                    max_tokens, temperature, timeout_ms, api_key, updated_at
              FROM public.llm_config
              ORDER BY updated_at DESC LIMIT 1`
         )
@@ -51,7 +52,8 @@ export async function getLlmConfig() {
             maxTokens:   row.max_tokens,
             temperature: parseFloat(row.temperature),
             timeoutMs:   row.timeout_ms,
-            apiKey:      row.api_key ?? ''
+            apiKey:      row.api_key ?? '',
+            updatedAt:   row.updated_at ?? null
         }
         _cache = result
         _cacheExpiry = Date.now() + CACHE_TTL_MS
