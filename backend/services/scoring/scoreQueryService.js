@@ -33,7 +33,7 @@ export async function getConceptPoolSizes(days = 7) {
         UNION ALL
         SELECT 'lms', COUNT(DISTINCT user_id)
         FROM public.lms_sessions
-        WHERE session_date >= CURRENT_DATE - ($1 * INTERVAL '1 day') ${EXCLUDE_SIMULATED_USERS}
+        WHERE session_date >= CURRENT_DATE - ($1 * INTERVAL '1 day') AND is_simulated = false
         UNION ALL
         SELECT 'srl', COUNT(DISTINCT user_id)
         FROM public.srl_annotations
@@ -114,7 +114,7 @@ async function getLMSMetrics(days) {
                AS participation_score
         FROM public.lms_sessions
         WHERE ($1::int IS NULL OR session_date >= CURRENT_DATE - ($1 * INTERVAL '1 day'))
-        ${EXCLUDE_SIMULATED_USERS}
+        AND is_simulated = false
         GROUP BY user_id
     `, [days])
     const metrics = {}
