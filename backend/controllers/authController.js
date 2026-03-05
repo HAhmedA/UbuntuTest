@@ -14,6 +14,11 @@ export const login = asyncRoute(async (req, res) => {
         if (!ok) throw new AppError('INVALID_CREDENTIALS', 'Invalid email or password', 401)
         const user = { id: row.id, email: row.email, name: row.name, role: row.role }
         req.session.user = user
+        // Explicitly save session before responding — prevents race condition where
+        // the browser fires parallel requests before the session row is in PostgreSQL.
+        await new Promise((resolve, reject) =>
+            req.session.save(err => (err ? reject(err) : resolve()))
+        )
         logger.info(`User logged in: ${email}`)
         res.json(user)
 })
@@ -46,6 +51,9 @@ export const register = asyncRoute(async (req, res) => {
         )
         const user = insert.rows[0]
         req.session.user = user
+        await new Promise((resolve, reject) =>
+            req.session.save(err => (err ? reject(err) : resolve()))
+        )
         logger.info(`User registered: ${email}`)
 
         // Generate simulated data via Orchestrator (dev/test only).
