@@ -9,6 +9,7 @@ import { asyncRoute, Errors } from '../utils/errors.js'
 import { CONCEPT_NAMES, CONCEPT_IDS } from '../config/concepts.js'
 import { getConceptPoolSizes, getUserConceptDataSet } from '../services/scoring/scoreQueryService.js'
 import { getLlmConfig } from '../services/llmConfigService.js'
+import { computeAllScores } from '../services/scoring/scoreComputationService.js'
 
 const router = Router()
 
@@ -299,6 +300,42 @@ router.delete('/clear-student-data', asyncRoute(async (req, res) => {
     `)
     logger.warn(`Admin ${req.session.user?.email} cleared all student data`)
     res.json({ cleared: true })
+}))
+
+// ── Manual score recomputation ────────────────────────────────────
+// Triggers the same pipeline the nightly cron runs, on demand.
+// Useful after a CSV import to see scores without waiting until midnight.
+router.post('/recompute-scores', asyncRoute(async (req, res) => {
+    const { rows } = await pool.query(`
+        SELECT DISTINCT user_id FROM (
+            SELECT user_id FROM public.sleep_sessions   WHERE is_simulated = false
+            UNION
+            SELECT user_id FROM public.screen_time_sessions WHERE is_simulated = false
+            UNION
+            SELECT user_id FROM public.srl_responses
+            UNION
+            SELECT user_id FROM public.lms_sessions     WHERE is_simulated = false
+        ) active_users
+    `)
+
+    if (rows.length === 0) {
+        return res.json({ recomputed: 0, errors: 0, message: 'No active users found' })
+    }
+
+    let recomputed = 0
+    let errors = 0
+    for (const { user_id } of rows) {
+        try {
+            await computeAllScores(user_id)
+            recomputed++
+        } catch (err) {
+            logger.error(`recompute-scores: failed for user ${user_id}: ${err.message}`)
+            errors++
+        }
+    }
+
+    logger.info(`Admin ${req.session.user?.email} triggered score recomputation: ${recomputed} ok, ${errors} errors`)
+    res.json({ recomputed, errors, total: rows.length })
 }))
 
 // ── LLM Config endpoints ──────────────────────────────────────────

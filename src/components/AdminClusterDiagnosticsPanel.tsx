@@ -117,8 +117,11 @@ const AdminClusterDiagnosticsPanel = () => {
     const [membersLoading, setMembersLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [collapsed, setCollapsed] = useState(true)
+    const [recomputing, setRecomputing] = useState(false)
+    const [recomputeResult, setRecomputeResult] = useState<string | null>(null)
 
-    useEffect(() => {
+    const loadDiagnostics = () => {
+        setLoading(true)
         api.get<{ diagnostics: ConceptDiagnostic[] }>('/admin/cluster-diagnostics')
             .then(data => {
                 setDiagnostics(data.diagnostics || [])
@@ -128,9 +131,10 @@ const AdminClusterDiagnosticsPanel = () => {
                 setError(err.message)
                 setLoading(false)
             })
-    }, [])
+    }
 
-    useEffect(() => {
+    const loadMembers = () => {
+        setMembersLoading(true)
         api.get<{ members: ClusterMember[] }>('/admin/cluster-members')
             .then(data => {
                 setMembers(data.members || [])
@@ -139,7 +143,30 @@ const AdminClusterDiagnosticsPanel = () => {
             .catch(() => {
                 setMembersLoading(false)
             })
-    }, [])
+    }
+
+    useEffect(() => { loadDiagnostics() }, [])
+    useEffect(() => { loadMembers() }, [])
+
+    const handleRecompute = async () => {
+        setRecomputing(true)
+        setRecomputeResult(null)
+        try {
+            const result = await api.post<{ recomputed: number; errors: number; total: number; message?: string }>(
+                '/admin/recompute-scores', {}
+            )
+            setRecomputeResult(
+                result.message ?? `Done: ${result.recomputed}/${result.total} users scored${result.errors > 0 ? `, ${result.errors} errors` : ''}`
+            )
+            // Refresh diagnostics and members after pipeline completes
+            loadDiagnostics()
+            loadMembers()
+        } catch (err: any) {
+            setRecomputeResult(`Error: ${err.message}`)
+        } finally {
+            setRecomputing(false)
+        }
+    }
 
     // Group members: conceptId → clusterIndex → ClusterMember[]
     const grouped: Record<string, Record<number, ClusterMember[]>> = {}
@@ -158,26 +185,51 @@ const AdminClusterDiagnosticsPanel = () => {
             overflow: 'hidden'
         }}>
             {/* Collapsible header */}
-            <button
-                onClick={() => setCollapsed(c => !c)}
-                style={{
-                    width: '100%',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '14px 20px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    color: '#374151',
-                    textAlign: 'left'
-                }}
-            >
-                <span>📊 Cluster Diagnostics</span>
-                <span style={{ fontSize: '12px', color: '#9ca3af' }}>{collapsed ? 'Show ▼' : 'Hide ▲'}</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '14px 20px', gap: '12px' }}>
+                <button
+                    onClick={() => setCollapsed(c => !c)}
+                    style={{
+                        flex: 1,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        color: '#374151',
+                        textAlign: 'left',
+                        padding: 0
+                    }}
+                >
+                    <span>📊 Cluster Diagnostics</span>
+                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>{collapsed ? 'Show ▼' : 'Hide ▲'}</span>
+                </button>
+                <button
+                    onClick={handleRecompute}
+                    disabled={recomputing}
+                    style={{
+                        padding: '6px 14px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        background: recomputing ? '#e5e7eb' : '#2563eb',
+                        color: recomputing ? '#9ca3af' : 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: recomputing ? 'not-allowed' : 'pointer',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                    }}
+                >
+                    {recomputing ? 'Running…' : 'Run Scoring Pipeline'}
+                </button>
+            </div>
+            {recomputeResult && (
+                <div style={{ padding: '0 20px 10px', fontSize: '12px', color: recomputeResult.startsWith('Error') ? '#991b1b' : '#065F46' }}>
+                    {recomputeResult}
+                </div>
+            )}
 
             {!collapsed && (
                 <div style={{ padding: '0 20px 20px' }}>
