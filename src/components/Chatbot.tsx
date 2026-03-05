@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './Chatbot.css'
-import { getInitialChat, getHistory, sendMessage as sendMessageApi, resetChat } from '../api/chat'
+import { getInitialChat, getHistory, sendMessage as sendMessageApi, resetChat, getChatStatus } from '../api/chat'
 
 interface Message {
     id: string
@@ -44,6 +44,9 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
     const [isResetting, setIsResetting] = useState(false)
     const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>(DEFAULT_PROMPTS)
 
+    // LLM availability status (null = unknown/loading)
+    const [llmAvailable, setLlmAvailable] = useState<boolean | null>(null)
+
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const messagesContainerRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -55,6 +58,19 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [])
+
+    // Poll LLM availability every 30 seconds while logged in
+    useEffect(() => {
+        if (!isLoggedIn) return
+        const check = () => {
+            getChatStatus()
+                .then(r => setLlmAvailable(r.available))
+                .catch(() => setLlmAvailable(false))
+        }
+        check()
+        const interval = setInterval(check, 30000)
+        return () => clearInterval(interval)
+    }, [isLoggedIn])
 
     // Pre-fetch greeting on login (before chat is opened)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -396,7 +412,9 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
                             <div className="chatbot-avatar">🎓</div>
                             <div className="chatbot-header-text">
                                 <h3>Learning Assistant</h3>
-                                <span className="chatbot-status">Online</span>
+                                <span className={`chatbot-status ${llmAvailable === false ? 'chatbot-status--offline' : ''}`}>
+                                    {llmAvailable === null ? 'Checking…' : llmAvailable ? 'Online' : 'Offline'}
+                                </span>
                             </div>
                         </div>
                         <button

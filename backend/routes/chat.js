@@ -11,6 +11,7 @@ import {
     getOrCreateSession,
     resetSession
 } from '../services/contextManagerService.js'
+import { checkAvailability } from '../services/apiConnectorService.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -95,6 +96,12 @@ router.post('/reset', asyncRoute(async (req, res) => {
 
     const greeting = await generateInitialGreeting(userId)
     res.json({ sessionId: result.newSessionId, greeting: greeting.greeting, success: true })
+}))
+
+// LLM availability status — used by the chatbot UI to show Online/Offline
+router.get('/status', asyncRoute(async (req, res) => {
+    const result = await checkAvailability()
+    res.json({ available: result.available, models: result.models })
 }))
 
 export default router

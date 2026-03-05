@@ -47,3 +47,6 @@ export const sendMessage = (text: string) =>
 
 export const resetChat = () =>
     api.post<ResetChatResponse>('/chat/reset', {})
+
+export const getChatStatus = () =>
+    api.get<{ available: boolean; models: string[] }>('/chat/status')

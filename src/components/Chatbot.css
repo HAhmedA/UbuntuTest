@@ -124,6 +124,11 @@
     opacity: 0.9;
 }
 
+.chatbot-status--offline {
+    color: #fca5a5;
+    opacity: 1;
+}
+
 .chatbot-reset-btn {
     background: rgba(255, 255, 255, 0.2);
     border: none;
