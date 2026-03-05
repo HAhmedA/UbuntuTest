@@ -255,9 +255,9 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
             created_at: new Date().toISOString()
         }])
 
-        // Start cooldown
+        // Start cooldown (short guard to prevent accidental double-send)
         setCooldown(true)
-        setTimeout(() => setCooldown(false), 1500)
+        setTimeout(() => setCooldown(false), 500)
 
         setIsLoading(true)
         setIsAwaitingResponse(true) // Always trigger await, regardless of chat state
