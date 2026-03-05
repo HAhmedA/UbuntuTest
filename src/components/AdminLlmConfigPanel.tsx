@@ -40,6 +40,7 @@ const AdminLlmConfigPanel: React.FC = () => {
     const [open, setOpen] = useState(false)
     const [form, setForm] = useState<Partial<LlmConfig>>({})
     const [showKey, setShowKey] = useState(false)
+    const [keyRevealed, setKeyRevealed] = useState(false)
     const [saveMsg, setSaveMsg] = useState<string | null>(null)
     const [saveFailed, setSaveFailed] = useState(false)
 
@@ -47,7 +48,26 @@ const AdminLlmConfigPanel: React.FC = () => {
 
     useEffect(() => {
         if (llmConfig) setForm(llmConfig)
+        // When config reloads (e.g. after save), reset reveal state so
+        // the new masked value is shown until the admin clicks Show again.
+        setKeyRevealed(false)
+        setShowKey(false)
     }, [llmConfig])
+
+    const handleToggleShowKey = async () => {
+        if (!showKey && !keyRevealed) {
+            // First "Show" click — fetch the real key from the backend
+            try {
+                const { api } = await import('../api/client')
+                const data = await api.get<{ apiKey: string }>('/admin/llm-config/reveal-key')
+                set('apiKey', data.apiKey)
+                setKeyRevealed(true)
+            } catch {
+                // If reveal fails, just toggle visibility without replacing value
+            }
+        }
+        setShowKey(s => !s)
+    }
 
     const set = <K extends keyof LlmConfig>(field: K, value: Partial<LlmConfig>[K]) =>
         setForm(prev => ({ ...prev, [field]: value }))
@@ -125,7 +145,7 @@ const AdminLlmConfigPanel: React.FC = () => {
                                 onChange={e => set('apiKey', e.target.value)} />
                             <button style={{ ...btnStyle('#333'), padding: '6px 12px' }}
                                 aria-label={showKey ? 'Hide API key' : 'Show API key'}
-                                onClick={() => setShowKey(s => !s)}>
+                                onClick={handleToggleShowKey}>
                                 {showKey ? 'Hide' : 'Show'}
                             </button>
                         </div>

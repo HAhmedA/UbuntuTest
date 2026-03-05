@@ -372,6 +372,12 @@ router.get('/llm-config', asyncRoute(async (req, res) => {
     })
 }))
 
+// Reveal the stored API key — only called when admin explicitly clicks "Show"
+router.get('/llm-config/reveal-key', asyncRoute(async (req, res) => {
+    const cfg = await getLlmConfig()
+    res.json({ apiKey: cfg.apiKey ?? '' })
+}))
+
 router.put('/llm-config', asyncRoute(async (req, res) => {
     const { provider, baseUrl, mainModel, judgeModel, maxTokens, temperature, timeoutMs, apiKey } = req.body
     const userId = req.session.user?.id
