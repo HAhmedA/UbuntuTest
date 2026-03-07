@@ -53,22 +53,25 @@ export async function upsertPreferences(userId, prefs) {
         throw new Error(`Invalid answer_style: ${answer_style}`)
     }
 
-    const merged = {
-        response_length: response_length ?? DEFAULT_PREFS.response_length,
-        tone: tone ?? DEFAULT_PREFS.tone,
-        answer_style: answer_style ?? DEFAULT_PREFS.answer_style
-    }
+    // Pass null for absent fields so COALESCE preserves the existing DB value on UPDATE,
+    // and falls back to the column default on INSERT (new row).
+    const rl = response_length ?? null
+    const t  = tone ?? null
+    const as = answer_style ?? null
 
     const { rows } = await pool.query(
         `INSERT INTO public.chatbot_preferences (user_id, response_length, tone, answer_style)
-         VALUES ($1, $2, $3, $4)
+         VALUES ($1,
+                 COALESCE($2::varchar, 'medium'),
+                 COALESCE($3::varchar, 'friendly'),
+                 COALESCE($4::varchar, 'mixed'))
          ON CONFLICT (user_id) DO UPDATE
-           SET response_length = EXCLUDED.response_length,
-               tone            = EXCLUDED.tone,
-               answer_style    = EXCLUDED.answer_style,
+           SET response_length = COALESCE($2::varchar, chatbot_preferences.response_length),
+               tone            = COALESCE($3::varchar, chatbot_preferences.tone),
+               answer_style    = COALESCE($4::varchar, chatbot_preferences.answer_style),
                updated_at      = NOW()
          RETURNING response_length, tone, answer_style, data_last_updated_at`,
-        [userId, merged.response_length, merged.tone, merged.answer_style]
+        [userId, rl, t, as]
     )
     return rows[0]
 }
