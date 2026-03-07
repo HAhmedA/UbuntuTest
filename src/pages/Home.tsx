@@ -223,6 +223,7 @@ const Home = () => {
                                 description='Click on a gauge to see a detailed breakdown'
                                 emptyMessage='No scores available for this student.'
                                 infoTooltip='Scores are calculated by comparing the student with peers who have similar behavioral patterns. The dial range (P5–P95) shows where most students in their group fall.'
+                                showConceptPlaceholders
                             />
                         </>
                     )}
@@ -273,6 +274,7 @@ const Home = () => {
                 <ScoreBoard
                     scores={conceptScores}
                     loading={scoresLoading}
+                    showConceptPlaceholders
                 />
 
                 {/* Data Source Progress + Quick Action Cards */}

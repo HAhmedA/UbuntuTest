@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import ScoreGauge from './ScoreGauge'
-import { DOMAIN_DESCRIPTIONS, DOMAIN_TIPS } from '../constants/concepts'
+import { CONCEPT_IDS, CONCEPT_DISPLAY_NAMES, DOMAIN_DESCRIPTIONS, DOMAIN_TIPS } from '../constants/concepts'
 
 // Inline interface — will be centralized in Phase 7
 interface ConceptScore {
@@ -19,6 +19,7 @@ interface ConceptScore {
     dialMax?: number
     computedAt?: string | null
     coldStart?: boolean
+    noData?: boolean
     breakdown?: Record<string, {
         score: number
         weight: number
@@ -41,6 +42,8 @@ interface Props {
     description?: string
     /** Message shown when scores array is empty. */
     emptyMessage?: string
+    /** When true, pads missing concepts with "no data yet" placeholder cards. */
+    showConceptPlaceholders?: boolean
 }
 
 // =============================================================================
@@ -116,6 +119,24 @@ function getConceptComparisonStatement(
 }
 
 // =============================================================================
+// NO-DATA PLACEHOLDER HELPERS
+// =============================================================================
+
+const NO_DATA_ICONS: Record<string, string> = {
+    sleep: '🌙',
+    screen_time: '📱',
+    lms: '📚',
+    srl: '📝',
+}
+
+const NO_DATA_HINTS: Record<string, string> = {
+    sleep: 'Log your sleep to unlock this score',
+    screen_time: 'Log your screen time to unlock this score',
+    lms: 'Your LMS activity will appear here automatically',
+    srl: 'Complete an SRL survey to unlock this score',
+}
+
+// =============================================================================
 // COMPONENT
 // =============================================================================
 
@@ -125,9 +146,20 @@ const ScoreBoard = ({
     infoTooltip,
     title = 'Your Performance Scores',
     description = 'Click on a gauge to see a detailed breakdown of your habits',
-    emptyMessage = 'No scores available yet. Complete your profile and surveys to see your performance.'
+    emptyMessage = 'No scores available yet. Complete your profile and surveys to see your performance.',
+    showConceptPlaceholders = false,
 }: Props) => {
     const [expandedConceptId, setExpandedConceptId] = useState<string | null>(null)
+
+    const displayScores = showConceptPlaceholders
+        ? CONCEPT_IDS.map(id => scores.find(s => s.conceptId === id) ?? {
+            conceptId: id,
+            conceptName: CONCEPT_DISPLAY_NAMES[id],
+            score: null,
+            trend: null,
+            noData: true,
+        })
+        : scores
 
     const handleGaugeClick = (conceptId: string) => {
         setExpandedConceptId(prev => prev === conceptId ? null : conceptId)
@@ -152,23 +184,30 @@ const ScoreBoard = ({
             <div className='mood-card-content'>
                 {loading ? (
                     <div className='mood-loading'>Loading scores...</div>
-                ) : scores.length === 0 ? (
+                ) : displayScores.length === 0 ? (
                     <div className='mood-no-data'>{emptyMessage}</div>
                 ) : (
                     <div className='score-gauges-grid'>
-                        {scores.map(score => (
+                        {displayScores.map(score => (
                             <div
                                 className={`score-gauge-wrapper ${expandedConceptId === score.conceptId ? 'expanded' : ''}`}
-                                onClick={() => !score.coldStart && handleGaugeClick(score.conceptId)}
+                                onClick={() => !score.coldStart && !score.noData && handleGaugeClick(score.conceptId)}
                                 key={score.conceptId}
                                 data-cold-start={score.coldStart ? 'true' : undefined}
-                                style={{ cursor: score.coldStart ? 'default' : 'pointer' }}
+                                data-no-data={score.noData ? 'true' : undefined}
+                                style={{ cursor: (score.coldStart || score.noData) ? 'default' : 'pointer' }}
                             >
                                 {score.coldStart ? (
                                     <div className='cold-start-placeholder'>
                                         <div className='cold-start-icon'>⏳</div>
                                         <div className='cold-start-label'>{score.conceptName}</div>
                                         <div className='cold-start-message'>Building your profile — check back once more students have joined.</div>
+                                    </div>
+                                ) : score.noData ? (
+                                    <div className='no-data-placeholder'>
+                                        <div className='no-data-icon'>{NO_DATA_ICONS[score.conceptId] ?? '📊'}</div>
+                                        <div className='no-data-label'>{score.conceptName}</div>
+                                        <div className='no-data-message'>{NO_DATA_HINTS[score.conceptId] ?? 'No data yet'}</div>
                                     </div>
                                 ) : (
                                     <>

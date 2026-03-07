@@ -241,11 +241,11 @@
     pointer-events: none;
 }
 
-.score-gauge-wrapper:not([data-cold-start]):hover::after {
+.score-gauge-wrapper:not([data-cold-start]):not([data-no-data]):hover::after {
     opacity: 1;
 }
 
-.score-gauge-wrapper:not([data-cold-start]):hover {
+.score-gauge-wrapper:not([data-cold-start]):not([data-no-data]):hover {
     box-shadow: 0 4px 16px rgba(8, 145, 178, 0.18);
 }
 
