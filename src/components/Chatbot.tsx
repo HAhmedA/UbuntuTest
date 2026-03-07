@@ -151,6 +151,16 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
         return () => window.removeEventListener('chatbot:dataUpdated', handler)
     }, [isOpen])
 
+    // Listen for external open requests (e.g. navbar "Chat about my data" button)
+    useEffect(() => {
+        const handler = () => {
+            setIsOpen(true)
+            setShowHiPill(false)
+        }
+        window.addEventListener('chatbot:open', handler)
+        return () => window.removeEventListener('chatbot:open', handler)
+    }, [])
+
     // Scroll to bottom when messages change or when chat opens
     useEffect(() => {
         if (isOpen && messages.length > 0) {
@@ -441,7 +451,7 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
         <div className={`chatbot-container ${isOpen ? 'open' : ''}`}>
             {/* "Need help?" pill */}
             {showHiPill && !isOpen && (
-                <div className="chatbot-hi-pill" onClick={toggleChat}>Need help? 💬</div>
+                <div className="chatbot-hi-pill" onClick={toggleChat}>Let's discuss your data 💬</div>
             )}
 
             {/* Floating bubble button */}

@@ -43,7 +43,9 @@ body {
 }
 
 .sjs-nav-button {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-left: 0;
   font-weight: 600;
   font-size: 18px;
