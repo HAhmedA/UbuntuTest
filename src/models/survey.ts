@@ -27,5 +27,5 @@ export const ratingSurveySampleResults = [
     { q1: 3, q2: 2, q3: 3, q4: 4, q5: 2, q6: 3, q7: 4, q8: 2, q9: 3, q10: 2 }
 ]
 
-// Base API URL. In Docker, set via build arg REACT_APP_API_BASE; defaults to '/api'
-export var apiBaseAddress = (process.env.REACT_APP_API_BASE as string) || '/api';
+// Base API URL. In Docker, set via build arg VITE_API_BASE; defaults to '/api'
+export var apiBaseAddress = import.meta.env.VITE_API_BASE || '/api';

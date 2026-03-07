@@ -1,7 +1,7 @@
 // Base API client — single source of truth for all fetch calls.
 // All domain API modules import from here.
 
-const BASE = (process.env.REACT_APP_API_BASE as string) || '/api'
+const BASE = import.meta.env.VITE_API_BASE || '/api'
 
 export class ApiError extends Error {
     constructor(

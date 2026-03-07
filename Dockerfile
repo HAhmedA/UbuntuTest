@@ -12,13 +12,9 @@ RUN npm ci --no-audit --no-fund
 # Copy source
 COPY . .
 
-# REACT_APP_* vars are baked at build-time in CRA
-ARG REACT_APP_API_BASE
-ENV REACT_APP_API_BASE=${REACT_APP_API_BASE}
-
-# PUBLIC_URL sets the base path for static assets (used for subpath deployments)
-ARG PUBLIC_URL=""
-ENV PUBLIC_URL=${PUBLIC_URL}
+# VITE_* vars are baked at build-time by Vite
+ARG VITE_API_BASE
+ENV VITE_API_BASE=${VITE_API_BASE}
 
 # Build production bundle — disable source maps + cap heap for 1 GB RAM hosts (e.g. t2.micro)
 # GENERATE_SOURCEMAP=false cuts peak webpack memory by ~50% (no .map files generated)
