@@ -63,11 +63,10 @@ const Home = () => {
     const [clearConfirming, setClearConfirming] = useState(false)
     const [clearLoading, setClearLoading] = useState(false)
 
-    // Submission reminder state (only for non-admin students)
+    // Submission state (only for non-admin students)
     const [missingSleepLog, setMissingSleepLog] = useState(false)
     const [missingScreenTime, setMissingScreenTime] = useState(false)
     const [missingSRLSurvey, setMissingSRLSurvey] = useState(false)
-    const [reminderDismissed, setReminderDismissed] = useState(false)
 
     // Load surveys if not already loaded
     useEffect(() => {
@@ -246,30 +245,6 @@ const Home = () => {
     return (
         <div className='mood-home-wrapper'>
             <div className='mood-home-container'>
-                {/* Submission reminder banner — top of page */}
-                {!reminderDismissed && (missingSleepLog || missingScreenTime || missingSRLSurvey) && (
-                    <div className='reminder-banner'>
-                        <div className='reminder-content'>
-                            <span className='reminder-icon'>⚠</span>
-                            <span className='reminder-text'>You haven't logged today yet:</span>
-                            {missingSleepLog && (
-                                <Link to='/sleep' className='reminder-link'>Sleep log →</Link>
-                            )}
-                            {missingScreenTime && (
-                                <Link to="/screen-time" className='reminder-link'>Screen time →</Link>
-                            )}
-                            {missingSRLSurvey && firstSurvey && (
-                                <Link to={`/run/${firstSurvey.id}`} className='reminder-link'>SRL survey →</Link>
-                            )}
-                        </div>
-                        <button
-                            className='reminder-dismiss'
-                            onClick={() => setReminderDismissed(true)}
-                            aria-label='Dismiss reminder'
-                        >✕</button>
-                    </div>
-                )}
-
                 {/* Score Gauges Section */}
                 <ScoreBoard
                     scores={conceptScores}

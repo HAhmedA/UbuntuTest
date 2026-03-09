@@ -86,8 +86,10 @@ const authSlice = createSlice({
             .addCase(register.pending, (state) => { state.status = 'loading'; state.error = null })
             .addCase(register.fulfilled, (state, action) => { state.status = 'succeeded'; state.user = action.payload; state.error = null })
             .addCase(register.rejected, (state, action) => { state.status = 'failed'; state.error = action.payload as string || 'Registration failed' })
-            .addCase(me.fulfilled, (state, action) => { state.user = action.payload })
-            .addCase(logout.fulfilled, (state) => { state.user = null; state.status = 'idle'; state.error = null })
+            .addCase(me.pending, (state) => { state.status = 'loading' })
+            .addCase(me.fulfilled, (state, action) => { state.status = 'succeeded'; state.user = action.payload })
+            .addCase(me.rejected, (state) => { state.status = 'failed' })
+            .addCase(logout.fulfilled, (state) => { state.user = null; state.status = 'succeeded'; state.error = null })
     }
 })
 

@@ -4,7 +4,7 @@
   width: 100%;
   min-height: calc(100vh - 64px);
   background: #f7f8fa;
-  padding: 32px 24px;
+  padding: 32px 0;
   position: relative;
 }
 
@@ -308,12 +308,15 @@
   background: #f3f4f6;
 }
 
-/* Last-updated label under each gauge */
+/* Last-updated label — top-right corner of gauge wrapper */
 .gauge-last-updated {
-  font-size: 11px;
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 10px;
   color: #9ca3af;
-  text-align: center;
-  margin-top: 4px;
+  text-align: right;
+  pointer-events: none;
 }
 
 .gauge-last-updated.stale {

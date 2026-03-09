@@ -16,6 +16,12 @@ const Run = () => {
     const [surveyModel, surveyModelSet] = useState<Model>()
 
     useEffect(() => {
+        const el = document.querySelector('.sjs-app__content')
+        if (el) el.classList.add('mood-content-override')
+        return () => { if (el) el.classList.remove('mood-content-override') }
+    }, [])
+
+    useEffect(() => {
         (async () => {
             const surveyAction = await dispatch(get(id as string))
             surveyDataSet(surveyAction.payload)
@@ -48,22 +54,24 @@ const Run = () => {
         })()
     }, [dispatch, id, navigate])
 
-    return (<>
-        <button 
-            className='run-back-button' 
-            onClick={() => navigate('/')}
-        >
-            ← Back
-        </button>
-        {surveyData === null && <div>Loading...</div>}
-        {surveyData === undefined && <div>Survey not found</div>}
-        {!!surveyData && !!surveyModel && !surveyModel.title && <>
-            <h1>{surveyData.name}</h1>
-        </>}
-        {!!surveyModel && <>
-            <Survey model={surveyModel}/>
-        </>}
-    </>);
+    return (
+        <div className='run-page-wrapper'>
+            <button
+                className='run-back-button'
+                onClick={() => navigate('/')}
+            >
+                ← Back
+            </button>
+            {surveyData === null && <div>Loading...</div>}
+            {surveyData === undefined && <div>Survey not found</div>}
+            {!!surveyData && !!surveyModel && !surveyModel.title && <>
+                <h1>{surveyData.name}</h1>
+            </>}
+            {!!surveyModel && <>
+                <Survey model={surveyModel}/>
+            </>}
+        </div>
+    );
 }
 
 export default Run;

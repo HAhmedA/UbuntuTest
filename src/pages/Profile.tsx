@@ -40,6 +40,13 @@ const Profile = () => {
     const [showAlignmentSuccess, setShowAlignmentSuccess] = useState(false)
     const [showStudentSuccess, setShowStudentSuccess] = useState(false)
 
+    // Remove white sjs-app__content card (same pattern as Sleep/Screen/Run pages)
+    useEffect(() => {
+        const el = document.querySelector('.sjs-app__content')
+        if (el) el.classList.add('mood-content-override')
+        return () => { if (el) el.classList.remove('mood-content-override') }
+    }, [])
+
     // Load Initial Data
     useEffect(() => {
         if (isAdmin) {

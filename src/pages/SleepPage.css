@@ -3,13 +3,17 @@
 .sleep-page {
     width: 100%;
     min-height: calc(100vh - 64px);
-    background: #f7f8fa;
     padding: 32px 24px;
 }
 
 .sleep-page-container {
     max-width: 720px;
     margin: 0 auto;
+    background: #F0F9FF;
+    border: 1px solid #BAE6FD;
+    border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 2px 12px rgba(59, 130, 246, 0.06);
 }
 
 .sleep-page-back-btn {
@@ -35,7 +39,8 @@
 }
 
 @media (max-width: 480px) {
-    .sleep-page {
-        padding: 16px 12px;
+    .sleep-page-container {
+        padding: 20px 16px;
+        border-radius: 12px;
     }
 }

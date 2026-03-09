@@ -1,3 +1,14 @@
+/* ── Page wrapper ────────────────────────────────────────── */
+.run-page-wrapper {
+  max-width: 800px;
+  margin: 32px auto;
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.06);
+}
+
 /* ── Back button ─────────────────────────────────────────── */
 .run-back-button {
   background: white;
@@ -23,8 +34,8 @@
 }
 
 .sd-container-modern {
-  max-width: 780px !important;
-  margin: 0 auto !important;
+  max-width: 100% !important;
+  margin: 0 !important;
 }
 
 /* Survey title */
@@ -106,8 +117,12 @@
 /* ── Validation error ────────────────────────────────────── */
 .sd-question__erbox {
   border-radius: 6px !important;
-  margin-top: 8px !important;
+  margin: 0 0 12px 0 !important;
   font-size: 13px !important;
+  padding: 8px 12px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* ── Progress bar ────────────────────────────────────────── */

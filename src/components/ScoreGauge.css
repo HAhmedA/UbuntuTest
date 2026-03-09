@@ -34,7 +34,8 @@
 }
 
 .score-gauge-medium .gauge-container {
-    width: 260px;
+    width: 100%;
+    max-width: 260px;
     height: 155px;
 }
 
@@ -221,32 +222,62 @@
     position: relative;
     border-radius: 12px;
     transition: box-shadow 0.2s;
+    min-width: 0;
 }
 
 .score-gauge-wrapper[data-cold-start] {
     cursor: default;
 }
 
+/* "Click to expand" text — sits below the legend row */
 .score-gauge-wrapper::after {
     content: 'Click to expand';
     position: absolute;
     bottom: 8px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 10px;
-    color: #9ca3af;
+    font-size: 12px;
+    color: #0891B2;
+    font-weight: 600;
     white-space: nowrap;
     opacity: 0;
     transition: opacity 0.2s;
     pointer-events: none;
+    z-index: 2;
 }
 
-.score-gauge-wrapper:not([data-cold-start]):not([data-no-data]):hover::after {
+/* Chevron-down icon — hangs below the card boundary */
+.score-gauge-wrapper::before {
+    content: '';
+    position: absolute;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 26px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 26' fill='none'%3E%3Cpath d='M3 3L22 22L41 3' stroke='%230891B2' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: contain;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.score-gauge-wrapper:not([data-cold-start]):not([data-no-data]):hover::after,
+.score-gauge-wrapper:not([data-cold-start]):not([data-no-data]):hover::before {
     opacity: 1;
 }
 
+/* Hide affordance when already expanded */
+.score-gauge-wrapper.expanded::after,
+.score-gauge-wrapper.expanded::before {
+    display: none;
+}
+
 .score-gauge-wrapper:not([data-cold-start]):not([data-no-data]):hover {
-    box-shadow: 0 4px 16px rgba(8, 145, 178, 0.18);
+    box-shadow: 0 4px 16px rgba(8, 145, 178, 0.18), 0 0 0 2px rgba(8, 145, 178, 0.3);
+    background: rgba(8, 145, 178, 0.03);
 }
 
 .score-gauges-grid {

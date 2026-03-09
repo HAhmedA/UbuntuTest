@@ -1,25 +1,32 @@
+/* ── Profile Page ────────────────────────────────────────── */
+
 .profile-wrapper {
   width: 100%;
   min-height: calc(100vh - 64px);
-  background: #f7f8fa;
   padding: 32px 24px;
 }
 
 .profile-container {
-  max-width: 1200px;
+  max-width: 760px;
   margin: 0 auto;
 }
 
+/* ── Back button ─────────────────────────────────────────── */
 .profile-back {
-  background: white;
-  border: 1px solid #E5E7EB;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 16px;
+  background: white;
+  color: #374151;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
   font-size: 14px;
-  color: #111827;
+  font-weight: 500;
   cursor: pointer;
-  margin-bottom: 24px;
-  transition: all 0.2s;
+  text-decoration: none;
+  margin-bottom: 20px;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .profile-back:hover {
@@ -27,97 +34,116 @@
   border-color: #D1D5DB;
 }
 
+/* ── Page title ──────────────────────────────────────────── */
 .profile-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
-  color: #111827;
-  margin: 0 0 32px 0;
+  color: #1E5275;
+  margin: 0 0 20px 0;
+  letter-spacing: -0.3px;
 }
 
+/* ── Main card ───────────────────────────────────────────── */
 .profile-content {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: #F0F9FF;
+  border: 1px solid #BAE6FD;
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.06);
 }
 
+/* ── Form layout ─────────────────────────────────────────── */
 .profile-form {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 28px;
 }
 
 .profile-form-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
+/* ── Labels ──────────────────────────────────────────────── */
 .profile-label {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: #1E5275;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
+/* ── Selects ─────────────────────────────────────────────── */
 .profile-select {
   width: 100%;
-  padding: 10px 12px;
-  font-size: 16px;
-  border: 1px solid #D1D5DB;
-  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 15px;
+  border: 1.5px solid #BAE6FD;
+  border-radius: 10px;
   background: white;
   color: #111827;
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 9L12 15L18 9' stroke='%231E5275' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
 }
 
 .profile-select:hover {
-  border-color: #9CA3AF;
+  border-color: #7DD3FC;
 }
 
 .profile-select:focus {
   outline: none;
-  border-color: #0891B2;
-  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+  border-color: #1E5275;
+  box-shadow: 0 0 0 3px rgba(30, 82, 117, 0.1);
 }
 
+/* ── Textarea ────────────────────────────────────────────── */
 .profile-textarea {
   width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  line-height: 1.5;
-  border: 1px solid #D1D5DB;
-  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 15px;
+  line-height: 1.6;
+  border: 1.5px solid #BAE6FD;
+  border-radius: 10px;
   background: white;
   color: #111827;
   resize: vertical;
   min-height: 200px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .profile-textarea:hover {
-  border-color: #9CA3AF;
+  border-color: #7DD3FC;
 }
 
 .profile-textarea:focus {
   outline: none;
-  border-color: #0891B2;
-  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+  border-color: #1E5275;
+  box-shadow: 0 0 0 3px rgba(30, 82, 117, 0.1);
 }
 
+/* ── Last updated text ───────────────────────────────────── */
 .profile-last-updated {
-  font-size: 14px;
+  font-size: 13px;
   color: #6B7280;
-  margin-top: 8px;
+  margin-top: 6px;
   font-style: italic;
 }
 
+/* ── Checkboxes ──────────────────────────────────────────── */
 .profile-checkbox-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-top: 8px;
+  gap: 12px;
+  margin-top: 4px;
 }
 
 .profile-checkbox-label {
@@ -128,15 +154,76 @@
   color: #374151;
   cursor: pointer;
   user-select: none;
+  background: white;
+  border: 1.5px solid #BAE6FD;
+  border-radius: 8px;
+  padding: 8px 14px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.profile-checkbox-label:hover {
+  border-color: #7DD3FC;
+  background: #F0F9FF;
+}
+
+.profile-checkbox-label:has(.profile-checkbox:checked) {
+  border-color: #1E5275;
+  background: #EFF6FF;
+  color: #1E5275;
+  font-weight: 500;
 }
 
 .profile-checkbox {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
-  accent-color: #0891B2;
+  accent-color: #1E5275;
+  flex-shrink: 0;
 }
 
+/* ── Form actions (save button row) ──────────────────────── */
+.profile-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #BAE6FD;
+}
+
+/* ── Submit button ───────────────────────────────────────── */
+.profile-submit-button {
+  background: #1E5275;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(30, 82, 117, 0.2);
+}
+
+.profile-submit-button:hover:not(:disabled) {
+  background: #256490;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 82, 117, 0.3);
+}
+
+.profile-submit-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.profile-submit-button:disabled {
+  background: #E5E7EB;
+  color: #9CA3AF;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Disabilities collapsible panel ──────────────────────── */
 .profile-disabilities-container {
   display: flex;
   flex-direction: column;
@@ -149,59 +236,23 @@
 
 .profile-disability-category {
   padding: 16px;
-  background: #F9FAFB;
-  border-radius: 8px;
-  border: 1px solid #E5E7EB;
+  background: white;
+  border-radius: 10px;
+  border: 1.5px solid #BAE6FD;
 }
 
 .profile-disability-category-title {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: #1E5275;
   margin: 0 0 12px 0;
 }
 
-.profile-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 16px;
-  border-top: 1px solid #E5E7EB;
-}
-
-.profile-submit-button {
-  background: #0891B2;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 12px 32px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s;
-}
-
-.profile-submit-button:hover {
-  background: #06B6D4;
-  transform: translateY(-1px);
-}
-
-.profile-submit-button:active {
-  transform: translateY(0);
-}
-
-.profile-submit-button:disabled {
-  background: #E5E7EB;
-  color: #9CA3AF;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* ── Disabilities collapsible panel ──────────────────────── */
-
 .profile-disabilities-panel {
-  border: 1.5px solid #E5E7EB;
+  border: 1.5px solid #BAE6FD;
   border-radius: 10px;
   overflow: hidden;
+  background: white;
 }
 
 .profile-disabilities-summary {
@@ -211,11 +262,16 @@
   padding: 12px 16px;
   cursor: pointer;
   font-size: 14px;
-  color: #374151;
+  color: #1E5275;
   font-weight: 500;
   list-style: none;
-  background: #F9FAFB;
+  background: #EFF6FF;
   user-select: none;
+  transition: background 0.15s;
+}
+
+.profile-disabilities-summary:hover {
+  background: #DBEAFE;
 }
 
 .profile-disabilities-summary::-webkit-details-marker {
@@ -225,7 +281,7 @@
 .profile-disabilities-chevron {
   transition: transform 0.2s;
   font-size: 16px;
-  color: #9CA3AF;
+  color: #1E5275;
 }
 
 details[open] .profile-disabilities-chevron {
@@ -237,7 +293,7 @@ details[open] .profile-disabilities-chevron {
   flex-wrap: wrap;
   gap: 8px;
   padding: 12px 16px 8px;
-  border-top: 1px solid #E5E7EB;
+  border-top: 1px solid #BAE6FD;
   background: white;
 }
 
@@ -254,14 +310,14 @@ details[open] .profile-disabilities-chevron {
 }
 
 .profile-disability-tab:hover {
-  background: #E0F7FA;
-  color: #0891B2;
+  background: #EFF6FF;
+  color: #1E5275;
 }
 
 .profile-disability-tab.active {
-  background: #E0F7FA;
-  border-color: #0891B2;
-  color: #0891B2;
+  background: #EFF6FF;
+  border-color: #1E5275;
+  color: #1E5275;
 }
 
 .profile-disability-items {
@@ -273,7 +329,7 @@ details[open] .profile-disabilities-chevron {
   border-top: 1px solid #F3F4F6;
 }
 
-/* Info icon + tooltip (mirrors ScoreGauge pattern) */
+/* ── Info icon + tooltip ─────────────────────────────────── */
 .profile-info-wrapper {
   position: relative;
   display: inline-flex;
@@ -288,8 +344,8 @@ details[open] .profile-disabilities-chevron {
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  background: #E5E7EB;
-  color: #6B7280;
+  background: #DBEAFE;
+  color: #1E5275;
   font-size: 9px;
   font-weight: 700;
   cursor: help;
@@ -298,7 +354,7 @@ details[open] .profile-disabilities-chevron {
 }
 
 .profile-info-icon:hover {
-  background: #D1D5DB;
+  background: #BFDBFE;
 }
 
 .profile-info-tooltip {
@@ -314,7 +370,7 @@ details[open] .profile-disabilities-chevron {
   font-size: 11px;
   line-height: 1.5;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
   pointer-events: none;
 }
@@ -323,45 +379,46 @@ details[open] .profile-disabilities-chevron {
   display: block;
 }
 
+/* ── Other free-text input ───────────────────────────────── */
 .profile-other-text {
   width: 100%;
   padding: 8px 12px;
   font-size: 14px;
-  border: 1.5px solid #D1D5DB;
+  border: 1.5px solid #BAE6FD;
   border-radius: 8px;
   background: white;
   color: #111827;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
 }
 
 .profile-other-text:focus {
   outline: none;
-  border-color: #0891B2;
-  box-shadow: 0 0 0 3px rgba(8,145,178,0.1);
+  border-color: #1E5275;
+  box-shadow: 0 0 0 3px rgba(30, 82, 117, 0.1);
 }
 
-/* ── Responsive design ───────────────────────────────────── */
+/* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   .profile-wrapper {
-    padding: 24px 16px;
+    padding: 20px 16px;
   }
 
   .profile-title {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .profile-content {
-    padding: 16px;
+    padding: 20px 20px;
   }
 
   .profile-form {
-    gap: 24px;
+    gap: 20px;
   }
 
   .profile-checkbox-group {
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
   }
 
   .profile-disabilities-container {

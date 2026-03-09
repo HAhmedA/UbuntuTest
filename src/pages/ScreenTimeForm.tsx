@@ -62,6 +62,13 @@ const ScreenTimeForm = () => {
     const sessionExceedsTotal = longestSession !== null && totalMinutes !== null && longestSession > totalMinutes
     const isLogicallyValid = !sessionExceedsTotal
 
+    // Override parent white card (same pattern as Home page)
+    useEffect(() => {
+        const el = document.querySelector('.sjs-app__content')
+        if (el) el.classList.add('mood-content-override')
+        return () => { if (el) el.classList.remove('mood-content-override') }
+    }, [])
+
     // Fetch today's entry on mount
     useEffect(() => {
         getTodayScreenTime()

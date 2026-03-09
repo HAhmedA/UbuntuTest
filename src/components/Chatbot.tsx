@@ -471,22 +471,7 @@ const Chatbot = ({ isLoggedIn }: ChatbotProps) => {
                         <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                 ) : (
-                    /* Robot face icon */
-                    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        {/* Antenna */}
-                        <line x1="13" y1="2" x2="13" y2="6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                        <circle cx="13" cy="2" r="1.5" fill="white"/>
-                        {/* Head */}
-                        <rect x="4" y="7" width="18" height="14" rx="3" fill="white" fillOpacity="0.9"/>
-                        {/* Eyes */}
-                        <circle cx="9.5" cy="13" r="2" fill="#0891B2"/>
-                        <circle cx="16.5" cy="13" r="2" fill="#0891B2"/>
-                        {/* Mouth */}
-                        <rect x="9" y="17" width="8" height="2" rx="1" fill="#0891B2"/>
-                        {/* Ear nubs */}
-                        <rect x="1" y="11" width="3" height="4" rx="1.5" fill="white" fillOpacity="0.7"/>
-                        <rect x="22" y="11" width="3" height="4" rx="1.5" fill="white" fillOpacity="0.7"/>
-                    </svg>
+                    <span role="img" aria-label="student" style={{ fontSize: '40px', lineHeight: 1, display: 'block' }}>🧑‍🎓</span>
                 )}
             </button>
 
